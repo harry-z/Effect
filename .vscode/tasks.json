@@ -1,0 +1,19 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+	  {
+		"type": "shell",
+		"label": "Win32 Debug Build",
+		"command": "${workspaceFolder}/Build.bat Debug",
+		"problemMatcher": ["$msCompile"],
+		"group": "build"
+	  },
+	  {
+		"type": "shell",
+		"label": "Win32 Release Build",
+		"command": "${workspaceFolder}/Build.bat Release",
+		"problemMatcher": ["$msCompile"],
+		"group": "build"
+	  }
+	]
+}
