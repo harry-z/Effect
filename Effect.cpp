@@ -18,6 +18,7 @@ Global_Data& GetGlobalData()
 void RegisterEffects()
 {
 	REGISTER_EFFECT(SimpleHLSL, SimpleHLSL)
+	REGISTER_EFFECT(EnvMap, EnvMap)
 }
 
 bool CreateDeviceAndImmediateContext(HWND hWnd)

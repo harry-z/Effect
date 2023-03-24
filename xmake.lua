@@ -9,6 +9,13 @@ target("SimpleHLSL")
     add_deps("EffectMain")
 target_end()
 
+target("EnvMap")
+    set_kind("shared")
+    add_defines("ENV_MAP_EXPORT_SYMBOL")
+    add_files("Effects/EnvMap/*.cpp")
+    add_deps("EffectMain")
+target_end()
+
 target("EffectMain")
     set_kind("shared")
     add_defines("EFFECT_EXPORT_SYMBOL")

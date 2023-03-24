@@ -118,5 +118,3 @@ extern "C"
 		g_pColorShader.Reset();
 	}
 }
-
-REGISTER_EFFECT(SimpleHLSL, SimpleHLSL)
