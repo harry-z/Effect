@@ -1,5 +1,4 @@
 #include "Effect.h"
-
 #include "jpgd.h"
 
 bool LoadFile(LPCTSTR lpszFileName, FileContent& FileContentRef)
@@ -196,4 +195,36 @@ bool LoadJpegTextureFromFile(LPCTSTR lpszFileName, bool bGammaCorrection, ID3D11
 	}
 
 	return false;
+}
+
+HRESULT CShaderHeaderInclude::Open(D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID *ppData, UINT *pBytes)
+{
+	HANDLE hFile = ::CreateFileA(pFileName, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	if (hFile == INVALID_HANDLE_VALUE)
+		return false;
+	DWORD nFileSize = ::GetFileSize(hFile, nullptr);
+	m_pFileContent = malloc(nFileSize);
+	DWORD nSizeRead = 0;
+	if (::ReadFile(hFile, m_pFileContent, nFileSize, &nSizeRead, nullptr) == FALSE)
+	{
+		return E_FAIL;
+	}
+	if (nFileSize != nSizeRead)
+	{
+		return E_FAIL;
+	}
+	*ppData = m_pFileContent;
+	*pBytes = nFileSize;
+	CloseHandle(hFile);
+	return S_OK;
+}
+
+HRESULT CShaderHeaderInclude::Close(LPCVOID pData)
+{
+	if (m_pFileContent)
+	{
+		free(m_pFileContent);
+		m_pFileContent = nullptr;
+	}
+	return S_OK;
 }

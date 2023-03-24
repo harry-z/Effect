@@ -1,105 +1,24 @@
 #include "Effect.h"
 
-TaskQueue g_TaskQueue;
-bool PopTaskAndRun()
-{
-	if (HasMoreTasks())
-	{
-		g_TaskQueue.front()->DoTask();
-		g_TaskQueue.pop_front();
-		return true;
-	}
-	else
-		return false;
-}
 
-bool HasMoreTasks()
-{
-	return g_TaskQueue.size() > 0;
-}
-
-LARGE_INTEGER Timer::s_Frequency;
-
-void Timer::Start()
-{
-	m_ElapsedTime = 0;
-	m_LastTime = 0;
-}
-
-void Timer::Tick()
-{
-	if (m_LastTime == -1)
-		return;
-
-	LARGE_INTEGER CurrentTime;
-	::QueryPerformanceCounter(&CurrentTime);
-	if (m_LastTime == 0)
-		m_LastTime = CurrentTime.QuadPart;
-	else
-	{
-		LONGLONG DeltaTime = CurrentTime.QuadPart - m_LastTime;
-		m_ElapsedTime += DeltaTime;
-		float ElapsedTimeInMicroSeconds = m_ElapsedTime * 1000000.0f / s_Frequency.QuadPart;
-		if (ElapsedTimeInMicroSeconds >= m_TimeSpan * 1000000.0f)
-		{
-			if (m_Func)
-				m_Func();
-			if (m_TriggerType == ETriggerType::Once)
-				m_LastTime = -1;
-			else
-				Start();
-		}
-	}
-}
-
-void Timer::GlobalInitialize()
-{
-	::QueryPerformanceFrequency(&s_Frequency);
-}
-
-TCHAR g_szModulePath[MAX_PATH];
-void CacheModulePath()
-{
-	GetModuleFileName(GetModuleHandle(NULL), g_szModulePath, MAX_PATH);
-	TCHAR* pSlash = _tcsrchr(g_szModulePath, _T('\\'));
-	if (pSlash)
-		*(pSlash + 1) = 0;
-}
-
-LPCTSTR GetExePath()
-{
-	return g_szModulePath;
-}
 
 Global_D3D_Interface g_D3DInterface;
-Global_Data g_GlobalData;
 
-// D3D11SwapChainWrapper g_pSwapChain;
-// D3D11DeviceWrapper g_pd3dDevice;
-// D3D11DeviceContextWrapper g_pImmediateContext;
-// D3D11RTVWrapper g_pOrigRTV;
-// D3D11Texture2DWrapper g_pOrigDSTexture;
-// D3D11DSVWrapper g_pOrigDSV;
 
-// D3D11BSWrapper g_pOverwriteBS;
-// D3D11RSWrapper g_pBackCullRS;
-// D3D11DSSWrapper g_pLessEqualDS;
-// D3D11SSWrapper g_pLinearSamplerState;
+D3D11BufferWrapper g_pGeomBuffer;
+D3D11BufferWrapper g_pGeomInvBuffer;
+D3D11BufferWrapper g_pGeomITBuffer;
 
-// D3D11BufferWrapper g_pGeomBuffer;
-// D3D11BufferWrapper g_pGeomInvBuffer;
-// D3D11BufferWrapper g_pGeomITBuffer;
+Global_Data& GetGlobalData()
+{
+	static Global_Data s_GlobalData;
+	return s_GlobalData;
+}
 
-// XMMATRIX g_CameraMatrix;
-// XMMATRIX g_ProjectionMatrix;
-// XMMATRIX g_CameraProjectionMatrix;
-// XMMATRIX g_InvCameraMatrix;
-// XMMATRIX g_InvProjectionMatrix;
-// XMMATRIX g_InvCameraProjectionMatrix;
-
-// GeomBuffer g_GeomBuffer;
-// GeomInvBuffer g_GeomInvBuffer;
-// GeomITBuffer g_GeomITBuffer;
+void RegisterEffects()
+{
+	REGISTER_EFFECT(SimpleHLSL, SimpleHLSL)
+}
 
 bool CreateDeviceAndImmediateContext(HWND hWnd)
 {
@@ -153,7 +72,7 @@ bool CreateDeviceAndImmediateContext(HWND hWnd)
 	if (FAILED(hr))
 		return false;
 
-	hr = g_D3DInterface.m_pDevice->CreateRenderTargetView(pBackBuffer, NULL, g_pOrigRTV);
+	hr = g_D3DInterface.m_pDevice->CreateRenderTargetView(pBackBuffer, NULL, g_D3DInterface.m_pMainBackbuffer);
 	pBackBuffer->Release();
 	if (FAILED(hr))
 		return false;
@@ -195,113 +114,118 @@ bool CreateDeviceAndImmediateContext(HWND hWnd)
     vp.TopLeftY = 0;
     g_D3DInterface.m_pDeviceContext->RSSetViewports( 1, &vp );
 
-	// D3D11_BUFFER_DESC BufferDesc;
-	// BufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	// BufferDesc.ByteWidth = sizeof(GeomBuffer);
-	// BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	// BufferDesc.MiscFlags = 0;
-	// BufferDesc.StructureByteStride = 0;
-	// BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-	// if (FAILED(hr = g_pd3dDevice->CreateBuffer(&BufferDesc, nullptr, g_pGeomBuffer)))
-	// 	return false;
-	// BufferDesc.ByteWidth = sizeof(GeomInvBuffer);
-	// if (FAILED(hr = g_pd3dDevice->CreateBuffer(&BufferDesc, nullptr, g_pGeomInvBuffer)))
-	// 	return false;
-	// BufferDesc.ByteWidth = sizeof(GeomITBuffer);
-	// if (FAILED(hr = g_pd3dDevice->CreateBuffer(&BufferDesc, nullptr, g_pGeomITBuffer)))
-	// 	return false;
-
-	// D3D11_BLEND_DESC blendState;
-	// blendState.AlphaToCoverageEnable = FALSE;
-	// blendState.IndependentBlendEnable = FALSE;
-	// for (int i = 0; i < 8; ++i)
-	// {
-	// 	blendState.RenderTarget[i].BlendEnable = TRUE;
-	// 	blendState.RenderTarget[i].SrcBlend = D3D11_BLEND_ONE;
-	// 	blendState.RenderTarget[i].DestBlend = D3D11_BLEND_ZERO;
-	// 	blendState.RenderTarget[i].BlendOp = D3D11_BLEND_OP_ADD;
-	// 	blendState.RenderTarget[i].SrcBlendAlpha = D3D11_BLEND_ONE;
-	// 	blendState.RenderTarget[i].DestBlendAlpha = D3D11_BLEND_ZERO;
-	// 	blendState.RenderTarget[i].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-	// 	blendState.RenderTarget[i].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-	// }
-	// if (FAILED(g_pd3dDevice->CreateBlendState(&blendState, g_pOverwriteBS)))
-	// 	return false;
-
-	// D3D11_RASTERIZER_DESC rasterizerState;
-	// rasterizerState.FillMode = D3D11_FILL_SOLID;
-	// rasterizerState.CullMode = D3D11_CULL_BACK;
-	// rasterizerState.FrontCounterClockwise = TRUE;
-	// rasterizerState.DepthBias = FALSE;
-	// rasterizerState.DepthBiasClamp = 0;
-	// rasterizerState.SlopeScaledDepthBias = 0;
-	// rasterizerState.DepthClipEnable = FALSE;
-	// rasterizerState.ScissorEnable = FALSE;
-	// rasterizerState.MultisampleEnable = FALSE;
-	// rasterizerState.AntialiasedLineEnable = FALSE;
-	// if (FAILED(g_pd3dDevice->CreateRasterizerState(&rasterizerState, g_pBackCullRS)))
-	// 	return false;
-
-	// D3D11_DEPTH_STENCIL_DESC depthstencilState;
-	// depthstencilState.DepthEnable = TRUE;
-	// depthstencilState.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
-	// depthstencilState.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
-	// depthstencilState.StencilEnable = FALSE;
-	// if (FAILED(g_pd3dDevice->CreateDepthStencilState(&depthstencilState, g_pLessEqualDS)))
-	// 	return false;
-
-	// D3D11_SAMPLER_DESC Desc;
-	// ZeroMemory(&Desc, sizeof(D3D11_SAMPLER_DESC));
-	// Desc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-	// Desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-	// Desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-	// Desc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-	// Desc.Filter = D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT;
-	// Desc.MaxAnisotropy = 0;
-	// Desc.MinLOD = 0;
-	// Desc.MaxLOD = D3D11_FLOAT32_MAX;
-	// if (FAILED(g_pd3dDevice->CreateSamplerState(&Desc, g_pLinearSamplerState)))
-	// 	return false;
+	D3D11_BUFFER_DESC BufferDesc;
+	BufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	BufferDesc.ByteWidth = sizeof(GeomBuffer);
+	BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	BufferDesc.MiscFlags = 0;
+	BufferDesc.StructureByteStride = 0;
+	BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+	if (FAILED(hr = g_D3DInterface.m_pDevice->CreateBuffer(&BufferDesc, nullptr, g_pGeomBuffer)))
+		return false;
+	BufferDesc.ByteWidth = sizeof(GeomInvBuffer);
+	if (FAILED(hr = g_D3DInterface.m_pDevice->CreateBuffer(&BufferDesc, nullptr, g_pGeomInvBuffer)))
+		return false;
+	BufferDesc.ByteWidth = sizeof(GeomITBuffer);
+	if (FAILED(hr = g_D3DInterface.m_pDevice->CreateBuffer(&BufferDesc, nullptr, g_pGeomITBuffer)))
+		return false;
 
 	return true;
 }
 
+std::weak_ptr<Effect_Instance> g_pCurrentEffectInst;
+
 bool CreateShaders()
 {
-	
-}
-
-std::vector<Geom> g_arrGeom;
-
-void AddGeom(VB_Base* pVB, ID3D11Buffer* pIndexBuffer, UINT NumIndex, XMMATRIX WorldMatrix)
-{
-	g_arrGeom.emplace_back(pVB, pIndexBuffer, NumIndex, WorldMatrix);
-}
-
-const std::vector<Geom>& GetGeoms()
-{
-	return g_arrGeom;
-}
-
-void DrawOneGeom(const Geom& InGeom)
-{
-	g_pImmediateContext->IASetVertexBuffers(0, 
-		InGeom.m_pVertexBuffer->GetNumVertexBuffers(), 
-		InGeom.m_pVertexBuffer->GetVertexBuffers(),
-		InGeom.m_pVertexBuffer->GetStrides(), 
-		InGeom.m_pVertexBuffer->GetOffsets());
-	if (InGeom.m_NumIndex > 0)
-	{
-		g_pImmediateContext->IASetIndexBuffer(InGeom.m_pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-		g_pImmediateContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		g_pImmediateContext->DrawIndexed(InGeom.m_NumIndex, 0, 0);
-	}
+	auto EffectInst = g_pCurrentEffectInst.lock();
+	if (EffectInst)
+		return EffectInst->CreateShadersCallback ? (*(EffectInst->CreateShadersCallback))() : true;
 	else
-	{
-		g_pImmediateContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-		g_pImmediateContext->Draw(InGeom.m_pVertexBuffer->GetNumVerts(), 0);
-	}
+		return false;
 }
+
+bool CreateBlendStates()
+{
+	auto EffectInst = g_pCurrentEffectInst.lock();
+	if (EffectInst)
+		return EffectInst->CreateBlendStatesCallback ? (*(EffectInst->CreateBlendStatesCallback))() : true;
+	else
+		return false;
+}
+
+bool CreateRasterizerStates()
+{
+	auto EffectInst = g_pCurrentEffectInst.lock();
+	if (EffectInst)
+		return EffectInst->CreateRasterizerStatesCallback ? (*(EffectInst->CreateRasterizerStatesCallback))() : true;
+	else
+		return false;
+}
+
+bool CreateDepthStencilStates()
+{
+	auto EffectInst = g_pCurrentEffectInst.lock();
+	if (EffectInst)
+		return EffectInst->CreateDepthStencilStatesCallback ? (*(EffectInst->CreateDepthStencilStatesCallback))() : true;
+	else
+		return false;
+}
+
+bool CreateSamplerStates()
+{
+	auto EffectInst = g_pCurrentEffectInst.lock();
+	if (EffectInst)
+		return EffectInst->CreateSamplerStatesCallback ? (*(EffectInst->CreateSamplerStatesCallback))() : true;
+	else
+		return false;
+}
+
+bool CreateRenderTargets()
+{
+	auto EffectInst = g_pCurrentEffectInst.lock();
+	if (EffectInst)
+		return EffectInst->CreateRenderTargetsCallback ? (*(EffectInst->CreateRenderTargetsCallback))() : true;
+	else
+		return false;
+}
+
+bool CreateConstantBuffers()
+{
+	auto EffectInst = g_pCurrentEffectInst.lock();
+	if (EffectInst)
+		return EffectInst->CreateConstantBuffersCallback ? (*(EffectInst->CreateConstantBuffersCallback))() : true;
+	else
+		return false;
+}
+
+bool LoadResources()
+{
+	auto EffectInst = g_pCurrentEffectInst.lock();
+	if (EffectInst)
+		return EffectInst->LoadResourcesCallback ? (*(EffectInst->LoadResourcesCallback))() : true;
+	else
+		return false;
+}
+
+void RenderOneFrame()
+{
+	auto EffectInst = g_pCurrentEffectInst.lock();
+	if (EffectInst && EffectInst->RenderOneFrameCallback)
+		(*(EffectInst->RenderOneFrameCallback))();
+}
+
+struct InputData
+{
+	byte m_KeyFlag = 0;
+	byte m_MouseFlag = 0;
+	WORD m_LastMouseX = 0;
+	WORD m_LastMouseY = 0;
+
+	void Reset() {
+		m_KeyFlag = m_MouseFlag = 0;
+		m_LastMouseX = m_LastMouseY = 0;
+	}
+} g_InputData;
 
 struct alignas(16) CameraData
 {
@@ -312,6 +236,9 @@ struct alignas(16) CameraData
 	XMVECTOR m_CameraLocation;
 
 	CameraData() {
+		Reset();
+	}
+	void Reset() {
 		// 左手坐标系，Z为Up方向
 		m_UpVector = MakeD3DVECTOR(0.0f, 0.0f, 1.0f);
 		m_CameraX = MakeD3DVECTOR(0.0f, 1.0f, 0.0f);
@@ -320,14 +247,6 @@ struct alignas(16) CameraData
 		m_CameraLocation = MakeD3DPOINT(-50.0f, 0.0f, 0.0f);
 	}
 } g_CameraData;
-
-struct InputData
-{
-	byte m_KeyFlag = 0;
-	byte m_MouseFlag = 0;
-	WORD m_LastMouseX = 0;
-	WORD m_LastMouseY = 0;
-} g_InputData;
 
 void NotifyKeyDown(UINT_PTR KeyValue)
 {
@@ -352,6 +271,10 @@ void NotifyKeyDown(UINT_PTR KeyValue)
 		g_InputData.m_KeyFlag |= 0x20;
 		break;
 	}
+	
+	auto EffectInst = g_pCurrentEffectInst.lock();
+	if (EffectInst && EffectInst->KeyDownCallback)
+		(*(EffectInst->KeyDownCallback))(KeyValue); 
 }
 
 void NotifyKeyUp(UINT_PTR KeyValue)
@@ -377,21 +300,31 @@ void NotifyKeyUp(UINT_PTR KeyValue)
 		g_InputData.m_KeyFlag &= ~(0x20);
 		break;
 	}
+
+	auto EffectInst = g_pCurrentEffectInst.lock();
+	if (EffectInst && EffectInst->KeyUpCallback)
+		(*(EffectInst->KeyUpCallback))(KeyValue);
 }
 
 void NotifyLButtonDown(WORD X, WORD Y)
 {
 	g_InputData.m_MouseFlag |= 0x01;
+	auto EffectInst = g_pCurrentEffectInst.lock();
+	if (EffectInst && EffectInst->LButtonDownCallback)
+		(*(EffectInst->LButtonDownCallback))(X, Y);
 }
 
 void NotifyLButtonUp(WORD X, WORD Y)
 {
 	g_InputData.m_MouseFlag &= ~(0x01);
+	auto EffectInst = g_pCurrentEffectInst.lock();
+	if (EffectInst && EffectInst->LButtonUpCallback)
+		(*(EffectInst->LButtonUpCallback))(X, Y);
 }
 
 void NotifyMouseMove(WORD X, WORD Y)
 {
-	if ((g_InputData.m_MouseFlag & 0x01) != 0)
+	if ((g_InputData.m_MouseFlag & 0x02) != 0)
 	{
 		short DeltaX = X - g_InputData.m_LastMouseX;
 		short DeltaY = Y - g_InputData.m_LastMouseY;
@@ -408,11 +341,26 @@ void NotifyMouseMove(WORD X, WORD Y)
 	}
 	g_InputData.m_LastMouseX = X;
 	g_InputData.m_LastMouseY = Y;
+
+	auto EffectInst = g_pCurrentEffectInst.lock();
+	if (EffectInst && EffectInst->MouseMoveCallback)
+		(*(EffectInst->MouseMoveCallback))(X, Y);
+}
+
+void NotifyRButtonDown(WORD X, WORD Y)
+{
+	g_InputData.m_MouseFlag |= 0x02;
+	auto EffectInst = g_pCurrentEffectInst.lock();
+	if (EffectInst && EffectInst->RButtonDownCallback)
+		(*(EffectInst->RButtonDownCallback))(X, Y);
 }
 
 void NotifyRButtonUp(WORD X, WORD Y)
 {
-	
+	g_InputData.m_MouseFlag &= ~(0x02);
+	auto EffectInst = g_pCurrentEffectInst.lock();
+	if (EffectInst && EffectInst->RButtonUpCallback)
+		(*(EffectInst->RButtonUpCallback))(X, Y);
 }
 
 void TickInput()
@@ -445,6 +393,62 @@ void TickInput()
 	}
 }
 
+void GlobalEffectReset()
+{
+	g_D3DInterface.Reset();
+	g_pGeomBuffer.Reset();
+	g_pGeomInvBuffer.Reset();
+	g_pGeomITBuffer.Reset();
+	g_pCurrentEffectInst.reset();
+	g_InputData.Reset();
+	g_CameraData.Reset();
+	ClearGeoms();
+}
+
+std::vector<Geom> g_arrGeom;
+
+void AddGeom(VB_Base* pVB, ID3D11Buffer* pIndexBuffer, UINT NumIndex, XMMATRIX WorldMatrix)
+{
+	g_arrGeom.emplace_back(pVB, pIndexBuffer, NumIndex, WorldMatrix);
+}
+
+const std::vector<Geom>& GetGeoms()
+{
+	return g_arrGeom;
+}
+
+void ClearGeoms()
+{
+	g_arrGeom.clear();
+}
+
+void DrawOneGeom(const Geom& InGeom)
+{
+	g_D3DInterface.m_pDeviceContext->IASetVertexBuffers(0, 
+		InGeom.m_pVertexBuffer->GetNumVertexBuffers(), 
+		InGeom.m_pVertexBuffer->GetVertexBuffers(),
+		InGeom.m_pVertexBuffer->GetStrides(), 
+		InGeom.m_pVertexBuffer->GetOffsets());
+	if (InGeom.m_NumIndex > 0)
+	{
+		g_D3DInterface.m_pDeviceContext->IASetIndexBuffer(InGeom.m_pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		g_D3DInterface.m_pDeviceContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		g_D3DInterface.m_pDeviceContext->DrawIndexed(InGeom.m_NumIndex, 0, 0);
+	}
+	else
+	{
+		g_D3DInterface.m_pDeviceContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+		g_D3DInterface.m_pDeviceContext->Draw(InGeom.m_pVertexBuffer->GetNumVerts(), 0);
+	}
+}
+
+XMMATRIX g_CameraMatrix;
+XMMATRIX g_ProjectionMatrix;
+XMMATRIX g_CameraProjectionMatrix;
+XMMATRIX g_InvCameraMatrix;
+XMMATRIX g_InvProjectionMatrix;
+XMMATRIX g_InvCameraProjectionMatrix;
+
 XMVECTOR GetCameraViewDirection()
 {
 	return g_CameraData.m_CameraZ;
@@ -462,13 +466,13 @@ XMMATRIX GetCameraMatrix()
 		return XMVectorShiftLeft(SwizzleAxis, DotAxis, 1); 
 	};
 
-	XMMATRIX CameraMatrixInCameraSpace(
+	XMMATRIX CameraMatrixTransposed(
 		CalculateRow(g_CameraData.m_CameraX, g_CameraData.m_CameraLocation),
 		CalculateRow(g_CameraData.m_CameraY, g_CameraData.m_CameraLocation),
 		CalculateRow(g_CameraData.m_CameraZ, g_CameraData.m_CameraLocation),
 		Row4
 	);
-	return XMMatrixTranspose(CameraMatrixInCameraSpace);
+	return XMMatrixTranspose(CameraMatrixTransposed);
 }
 
 XMMATRIX GetCameraMatrixWithoutTranslation()
@@ -489,7 +493,7 @@ XMMATRIX GetInverseCameraMatrix()
 	return XMMatrixInverse(&Deter, GetCameraMatrix());
 }
 
-XMMATRIX GetProjectionMatrix()
+XMMATRIX GetPerspectiveProjectionMatrix()
 {
 	constexpr float Fov = 45.0f * PI / 180.0f;
 	constexpr float Near = 0.1f;
@@ -497,42 +501,56 @@ XMMATRIX GetProjectionMatrix()
 	RECT rect;
 	GetClientRect(GetHWnd(), &rect);
 	float AspectRatio = (float)(rect.right - rect.left) / (float)(rect.bottom - rect.top);
-	float YScale = 1.0f / tanf(Fov * 0.5f);
-	float XScale = YScale / AspectRatio;
-	return XMMATRIX(
-		XScale, 0.0f, 0.0f, 0.0f,
-		0.0f, YScale, 0.0f, 0.0f,
-		0.0f, 0.0f, Far / (Far - Near), 1.0f,
-		0.0f, 0.0f, -Near * Far / (Far - Near), 0.0f);
+	return XMMatrixPerspectiveFovLH(Fov, AspectRatio, Near, Far);
 }
 
-XMMATRIX GetInverseProjectionMatrix()
+XMMATRIX GetInversePerspectiveProjectionMatrix()
 {
 	XMVECTOR Deter;
-	return XMMatrixInverse(&Deter, GetProjectionMatrix());
+	return XMMatrixInverse(&Deter, GetPerspectiveProjectionMatrix());
 }
+
+GeomBuffer g_GeomBuffer;
+GeomInvBuffer g_GeomInvBuffer;
+GeomITBuffer g_GeomITBuffer;
 
 void SyncGeomConstantBuffer(XMMATRIX World)
 {
 	D3D11_MAPPED_SUBRESOURCE SubRc;
 	ZeroMemory(&SubRc, sizeof(D3D11_MAPPED_SUBRESOURCE));
 
+	g_CameraMatrix = GetCameraMatrix();
+	g_ProjectionMatrix = GetPerspectiveProjectionMatrix();
+	g_CameraProjectionMatrix = XMMatrixMultiply(g_CameraMatrix, g_ProjectionMatrix);
+
+	XMVECTOR Deter;
+	g_InvCameraMatrix = XMMatrixInverse(&Deter, g_CameraMatrix);
+	g_InvProjectionMatrix = XMMatrixInverse(&Deter, g_ProjectionMatrix);
+	g_InvCameraProjectionMatrix = XMMatrixInverse(&Deter, g_CameraProjectionMatrix);
+
 	XMStoreFloat4x4A(&g_GeomBuffer.World, World);
 	XMStoreFloat4x4A(&g_GeomBuffer.WorldView, XMMatrixMultiply(World, g_CameraMatrix));
 	XMStoreFloat4x4A(&g_GeomBuffer.WorldViewProj, XMMatrixMultiply(World, g_CameraProjectionMatrix));
-	g_pImmediateContext->Map(g_pGeomBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &SubRc);
+	g_D3DInterface.m_pDeviceContext->Map(g_pGeomBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &SubRc);
 	memcpy(SubRc.pData, &g_GeomBuffer, sizeof(GeomBuffer));
-	g_pImmediateContext->Unmap(g_pGeomBuffer, 0);
+	g_D3DInterface.m_pDeviceContext->Unmap(g_pGeomBuffer, 0);
 
-	XMVECTOR Deter;
+	
+	XMStoreFloat4x4A(&g_GeomInvBuffer.InvProj, g_InvProjectionMatrix);
+	XMStoreFloat4x4A(&g_GeomInvBuffer.InvViewProj, g_InvCameraProjectionMatrix);
+	g_D3DInterface.m_pDeviceContext->Map(g_pGeomInvBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &SubRc);
+	memcpy(SubRc.pData, &g_GeomInvBuffer, sizeof(GeomInvBuffer));
+	g_D3DInterface.m_pDeviceContext->Unmap(g_pGeomInvBuffer, 0);
+
 	XMStoreFloat4x4A(&g_GeomITBuffer.WorldIT, XMMatrixTranspose(XMMatrixInverse(&Deter, World)));
 	XMStoreFloat4x4A(&g_GeomITBuffer.WorldViewIT, XMMatrixTranspose(XMMatrixInverse(&Deter, XMMatrixMultiply(World, g_CameraMatrix))));
-	g_pImmediateContext->Map(g_pGeomITBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &SubRc);
+	g_D3DInterface.m_pDeviceContext->Map(g_pGeomITBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &SubRc);
 	memcpy(SubRc.pData, &g_GeomITBuffer, sizeof(GeomITBuffer));
-	g_pImmediateContext->Unmap(g_pGeomITBuffer, 0);
+	g_D3DInterface.m_pDeviceContext->Unmap(g_pGeomITBuffer, 0);
 
-	g_pImmediateContext->VSSetConstantBuffers(0, 1, g_pGeomBuffer);
-	g_pImmediateContext->VSSetConstantBuffers(2, 1, g_pGeomITBuffer);
+	g_D3DInterface.m_pDeviceContext->VSSetConstantBuffers(0, 1, g_pGeomBuffer);
+	g_D3DInterface.m_pDeviceContext->VSSetConstantBuffers(1, 1, g_pGeomInvBuffer);
+	g_D3DInterface.m_pDeviceContext->VSSetConstantBuffers(2, 1, g_pGeomITBuffer);
 }
 
 XMFLOAT4A SRGBToRGB(FXMVECTOR srgb)
@@ -543,31 +561,3 @@ XMFLOAT4A SRGBToRGB(FXMVECTOR srgb)
 	return ret;
 }
 
-HRESULT CShaderHeaderInclude::Open(D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID *ppData, UINT *pBytes)
-{
-	FILE* pFile = nullptr;
-	char szFilePath[MAX_PATH];
-	strcpy(szFilePath, g_szcModulePath);
-	strcat(szFilePath, pFileName);
-	if (fopen_s(&pFile, szFilePath, "rb") == 0)
-	{
-		fseek(pFile, 0, SEEK_END);
-		long n = ftell(pFile);
-		fseek(pFile, 0, SEEK_SET);
-		char* p = (char*)malloc(n + 1);
-		fread(p, sizeof(char), n, pFile);
-		fclose(pFile);
-		p[n] = 0;
-		*ppData = p;
-		*pBytes = n;
-		return S_OK;
-	}
-	else
-		return E_FAIL;
-}
-
-HRESULT CShaderHeaderInclude::Close(LPCVOID pData)
-{
-	// free(const_cast<LPVOID>(pData));
-	return S_OK;
-}

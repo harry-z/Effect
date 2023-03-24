@@ -8,19 +8,10 @@
 #include <DirectXCollision.h>
 using namespace DirectX;
 
-#include <string>
-#include <vector>
-#include <deque>
-#include <memory>
-#include <functional>
 
 #define SAFE_RELEASE(p) if (p) { (p)->Release(); (p) = NULL; }
 
-#ifdef UNICODE
-	using String = std::wstring;
-#else
-	using String = std::string;
-#endif
+
 
 template <class InterfaceType>
 class CD3DInterfaceWrapper {
@@ -29,12 +20,28 @@ private:
 public:
 	CD3DInterfaceWrapper() {}
 	CD3DInterfaceWrapper(InterfaceType* pInterface) : m_pInterface(pInterface) {}
+	template <class OtherInterfaceType>
+	CD3DInterfaceWrapper(const CD3DInterfaceWrapper<OtherInterfaceType>& Other) = delete;
+	template <class OtherInterfaceType>
+	CD3DInterfaceWrapper(CD3DInterfaceWrapper<OtherInterfaceType>&& rOther) {
+		m_pInterface = rOther.m_pInterface;
+		rOther.m_pInterface = nullptr;
+	}
 	~CD3DInterfaceWrapper() {
 		SAFE_RELEASE(m_pInterface);
 	}
 	CD3DInterfaceWrapper& operator= (InterfaceType* pInterface) {
 		Reset();
 		m_pInterface = pInterface;
+		return *this;
+	}
+	template <class OtherInterfaceType>
+	CD3DInterfaceWrapper& operator= (const CD3DInterfaceWrapper<OtherInterfaceType>& Other) = delete;
+	template <class OtherInterfaceType>
+	CD3DInterfaceWrapper& operator= (CD3DInterfaceWrapper<OtherInterfaceType>&& rOther) {
+		Reset();
+		m_pInterface = rOther.m_pInterface;
+		rOther.m_pInterface = nullptr;
 		return *this;
 	}
 	operator InterfaceType* () {
@@ -57,8 +64,6 @@ public:
 	}
 	InterfaceType* Get() { return m_pInterface; }
 	void Reset() { SAFE_RELEASE(m_pInterface); }
-
-
 };
 
 using D3D11DeviceWrapper = CD3DInterfaceWrapper<ID3D11Device>;
@@ -80,67 +85,183 @@ using D3D11DSSWrapper = CD3DInterfaceWrapper<ID3D11DepthStencilState>;
 using D3D11SSWrapper = CD3DInterfaceWrapper<ID3D11SamplerState>;
 using D3DBlobWrapper = CD3DInterfaceWrapper<ID3DBlob>;
 
-class ITask
+template <
+	UINT8 RT0ColorWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL,
+	D3D11_BLEND_OP RT0ColorBlendOp = D3D11_BLEND_OP_ADD,
+	D3D11_BLEND    RT0ColorSrcBlend = D3D11_BLEND_ONE,
+	D3D11_BLEND    RT0ColorDestBlend = D3D11_BLEND_ZERO,
+	D3D11_BLEND_OP RT0AlphaBlendOp = D3D11_BLEND_OP_ADD,
+	D3D11_BLEND    RT0AlphaSrcBlend = D3D11_BLEND_ONE,
+	D3D11_BLEND    RT0AlphaDestBlend = D3D11_BLEND_ZERO,
+	UINT8 RT1ColorWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL,
+	D3D11_BLEND_OP RT1ColorBlendOp = D3D11_BLEND_OP_ADD,
+	D3D11_BLEND    RT1ColorSrcBlend = D3D11_BLEND_ONE,
+	D3D11_BLEND    RT1ColorDestBlend = D3D11_BLEND_ZERO,
+	D3D11_BLEND_OP RT1AlphaBlendOp = D3D11_BLEND_OP_ADD,
+	D3D11_BLEND    RT1AlphaSrcBlend = D3D11_BLEND_ONE,
+	D3D11_BLEND    RT1AlphaDestBlend = D3D11_BLEND_ZERO,
+	UINT8 RT2ColorWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL,
+	D3D11_BLEND_OP RT2ColorBlendOp = D3D11_BLEND_OP_ADD,
+	D3D11_BLEND    RT2ColorSrcBlend = D3D11_BLEND_ONE,
+	D3D11_BLEND    RT2ColorDestBlend = D3D11_BLEND_ZERO,
+	D3D11_BLEND_OP RT2AlphaBlendOp = D3D11_BLEND_OP_ADD,
+	D3D11_BLEND    RT2AlphaSrcBlend = D3D11_BLEND_ONE,
+	D3D11_BLEND    RT2AlphaDestBlend = D3D11_BLEND_ZERO,
+	UINT8 RT3ColorWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL,
+	D3D11_BLEND_OP RT3ColorBlendOp = D3D11_BLEND_OP_ADD,
+	D3D11_BLEND    RT3ColorSrcBlend = D3D11_BLEND_ONE,
+	D3D11_BLEND    RT3ColorDestBlend = D3D11_BLEND_ZERO,
+	D3D11_BLEND_OP RT3AlphaBlendOp = D3D11_BLEND_OP_ADD,
+	D3D11_BLEND    RT3AlphaSrcBlend = D3D11_BLEND_ONE,
+	D3D11_BLEND    RT3AlphaDestBlend = D3D11_BLEND_ZERO,
+	UINT8 RT4ColorWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL,
+	D3D11_BLEND_OP RT4ColorBlendOp = D3D11_BLEND_OP_ADD,
+	D3D11_BLEND    RT4ColorSrcBlend = D3D11_BLEND_ONE,
+	D3D11_BLEND    RT4ColorDestBlend = D3D11_BLEND_ZERO,
+	D3D11_BLEND_OP RT4AlphaBlendOp = D3D11_BLEND_OP_ADD,
+	D3D11_BLEND    RT4AlphaSrcBlend = D3D11_BLEND_ONE,
+	D3D11_BLEND    RT4AlphaDestBlend = D3D11_BLEND_ZERO,
+	UINT8 RT5ColorWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL,
+	D3D11_BLEND_OP RT5ColorBlendOp = D3D11_BLEND_OP_ADD,
+	D3D11_BLEND    RT5ColorSrcBlend = D3D11_BLEND_ONE,
+	D3D11_BLEND    RT5ColorDestBlend = D3D11_BLEND_ZERO,
+	D3D11_BLEND_OP RT5AlphaBlendOp = D3D11_BLEND_OP_ADD,
+	D3D11_BLEND    RT5AlphaSrcBlend = D3D11_BLEND_ONE,
+	D3D11_BLEND    RT5AlphaDestBlend = D3D11_BLEND_ZERO,
+	UINT8 RT6ColorWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL,
+	D3D11_BLEND_OP RT6ColorBlendOp = D3D11_BLEND_OP_ADD,
+	D3D11_BLEND    RT6ColorSrcBlend = D3D11_BLEND_ONE,
+	D3D11_BLEND    RT6ColorDestBlend = D3D11_BLEND_ZERO,
+	D3D11_BLEND_OP RT6AlphaBlendOp = D3D11_BLEND_OP_ADD,
+	D3D11_BLEND    RT6AlphaSrcBlend = D3D11_BLEND_ONE,
+	D3D11_BLEND    RT6AlphaDestBlend = D3D11_BLEND_ZERO,
+	UINT8 RT7ColorWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL,
+	D3D11_BLEND_OP RT7ColorBlendOp = D3D11_BLEND_OP_ADD,
+	D3D11_BLEND    RT7ColorSrcBlend = D3D11_BLEND_ONE,
+	D3D11_BLEND    RT7ColorDestBlend = D3D11_BLEND_ZERO,
+	D3D11_BLEND_OP RT7AlphaBlendOp = D3D11_BLEND_OP_ADD,
+	D3D11_BLEND    RT7AlphaSrcBlend = D3D11_BLEND_ONE,
+	D3D11_BLEND    RT7AlphaDestBlend = D3D11_BLEND_ZERO,
+	bool			bUseAlphaToCoverage = false
+>
+class TStaticBlendState
 {
 public:
-	virtual ~ITask() {}
-	virtual void DoTask() = 0;
-};
+	TStaticBlendState()
+	{
+		m_Desc.IndependentBlendEnable = TRUE;
+		m_Desc.AlphaToCoverageEnable = bUseAlphaToCoverage;
+		ConvertToRenderTargetDesc(m_Desc.RenderTarget[0], RT0ColorBlendOp, RT0ColorSrcBlend, RT0ColorDestBlend, RT0AlphaBlendOp, RT0AlphaSrcBlend, RT0AlphaDestBlend, RT0ColorWriteMask);
+		ConvertToRenderTargetDesc(m_Desc.RenderTarget[1], RT1ColorBlendOp, RT1ColorSrcBlend, RT1ColorDestBlend, RT1AlphaBlendOp, RT1AlphaSrcBlend, RT1AlphaDestBlend, RT1ColorWriteMask);
+		ConvertToRenderTargetDesc(m_Desc.RenderTarget[2], RT2ColorBlendOp, RT2ColorSrcBlend, RT2ColorDestBlend, RT2AlphaBlendOp, RT2AlphaSrcBlend, RT2AlphaDestBlend, RT2ColorWriteMask);
+		ConvertToRenderTargetDesc(m_Desc.RenderTarget[3], RT3ColorBlendOp, RT3ColorSrcBlend, RT3ColorDestBlend, RT3AlphaBlendOp, RT3AlphaSrcBlend, RT3AlphaDestBlend, RT3ColorWriteMask);
+		ConvertToRenderTargetDesc(m_Desc.RenderTarget[4], RT4ColorBlendOp, RT4ColorSrcBlend, RT4ColorDestBlend, RT4AlphaBlendOp, RT4AlphaSrcBlend, RT4AlphaDestBlend, RT4ColorWriteMask);
+		ConvertToRenderTargetDesc(m_Desc.RenderTarget[5], RT5ColorBlendOp, RT5ColorSrcBlend, RT5ColorDestBlend, RT5AlphaBlendOp, RT5AlphaSrcBlend, RT5AlphaDestBlend, RT5ColorWriteMask);
+		ConvertToRenderTargetDesc(m_Desc.RenderTarget[6], RT6ColorBlendOp, RT6ColorSrcBlend, RT6ColorDestBlend, RT6AlphaBlendOp, RT6AlphaSrcBlend, RT6AlphaDestBlend, RT6ColorWriteMask);
+		ConvertToRenderTargetDesc(m_Desc.RenderTarget[7], RT7ColorBlendOp, RT7ColorSrcBlend, RT7ColorDestBlend, RT7AlphaBlendOp, RT7AlphaSrcBlend, RT7AlphaDestBlend, RT7ColorWriteMask);
+	}
 
-using TaskQueue = std::deque<std::shared_ptr<ITask>>;
-extern TaskQueue g_TaskQueue;
+	void ConvertToRenderTargetDesc(_Out_ D3D11_RENDER_TARGET_BLEND_DESC& RenderTargetDesc, 
+		D3D11_BLEND_OP ColorBlendOp, D3D11_BLEND ColorBlendSrc, D3D11_BLEND ColorBlendDest, 
+		D3D11_BLEND_OP AlphaBlendOp, D3D11_BLEND AlphaBlendSrc, D3D11_BLEND AlphaBlendDesc,
+		UINT8 ColorWriteMask) {
+		RenderTargetDesc.BlendEnable = TRUE;
+		RenderTargetDesc.BlendOp = ColorBlendOp;
+		RenderTargetDesc.SrcBlend = ColorBlendSrc;
+		RenderTargetDesc.DestBlend = ColorBlendDest;
+		RenderTargetDesc.BlendOpAlpha = AlphaBlendOp;
+		RenderTargetDesc.SrcBlendAlpha = AlphaBlendSrc;
+		RenderTargetDesc.DestBlendAlpha = AlphaBlendDesc;
+		RenderTargetDesc.RenderTargetWriteMask = ColorWriteMask;
+	}
 
-template <class TaskType, class ... Args>
-void AddTask(Args && ... args) {
-	g_TaskQueue.emplace_back(std::make_shared<TaskType>(std::forward<Args>(args)...));
-}
-bool PopTaskAndRun();
-bool HasMoreTasks();
-
-class Timer
-{
-public:
-	enum class ETriggerType {
-		Once,
-		Repeat
-	};
-	Timer(float TimeSpanInSeconds, ETriggerType TriggerType, std::function<void()>&& Func) 
-	: m_TimeSpan(TimeSpanInSeconds) 
-	, m_TriggerType(TriggerType) 
-	, m_Func(Func) { m_ElapsedTime = 0; m_LastTime = -1; }
-	void Start();
-	void Tick();
-
-	static void GlobalInitialize();
+	D3D11BSWrapper GetBlendState() const {
+		ID3D11BlendState* pBlendState;
+		g_D3DInterface.m_pDevice->CreateBlendState(&m_Desc, &pBlendState);
+		return pBlendState;
+	}
 
 private:
-	LONGLONG m_ElapsedTime, m_LastTime;
-	float m_TimeSpan;
-	ETriggerType m_TriggerType;
-	std::function<void()> m_Func;
-
-	static LARGE_INTEGER s_Frequency;
+	D3D11_BLEND_DESC m_Desc;
 };
 
-HWND GetHWnd();
-void CacheModulePath();
-LPCTSTR GetExePath();
+template <
+	D3D11_FILL_MODE FillMode = D3D11_FILL_SOLID,
+	D3D11_CULL_MODE CullMode = D3D11_CULL_BACK,
+	BOOL FrontCCW = TRUE,
+	int DepthBias = 0
+>
+class TStaticRasterizerState
+{
+public:
+	TStaticRasterizerState() {
+		m_Desc.FillMode = FillMode;
+		m_Desc.CullMode = CullMode;
+		m_Desc.FrontCounterClockwise = FrontCCW;
+		m_Desc.DepthBias = DepthBias;
+		m_Desc.AntialiasedLineEnable = FALSE;
+		m_Desc.DepthBiasClamp = D3D11_DEFAULT_DEPTH_BIAS_CLAMP;
+		m_Desc.DepthClipEnable = TRUE;
+		m_Desc.MultisampleEnable = FALSE;
+		m_Desc.ScissorEnable = FALSE;
+		m_Desc.SlopeScaledDepthBias = D3D11_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+	}
 
-// extern D3D11SwapChainWrapper g_pSwapChain;
-// extern D3D11DeviceWrapper g_pd3dDevice;
-// extern D3D11DeviceContextWrapper g_pImmediateContext;
-// extern D3D11RTVWrapper g_pOrigRTV;
-// extern D3D11Texture2DWrapper g_pOrigDSTexture;
-// extern D3D11DSVWrapper g_pOrigDSV;
+	D3D11RSWrapper GetRasterizerState() const {
+		ID3D11RasterizerState* pRasterizerState;
+		g_D3DInterface.m_pDevice->CreateRasterizerState(&m_Desc, &pRasterizerState);
+		return pRasterizerState;
+	}
 
-// extern D3D11BSWrapper g_pOverwriteBS;
-// extern D3D11RSWrapper g_pBackCullRS;
-// extern D3D11DSSWrapper g_pLessEqualDS;
-// extern D3D11SSWrapper g_pLinearSamplerState;
+private:
+	D3D11_RASTERIZER_DESC m_Desc;
+};
 
-// extern D3D11BufferWrapper g_pGeomBuffer;
-// extern D3D11BufferWrapper g_pGeomInvBuffer;
-// extern D3D11BufferWrapper g_pGeomITBuffer;
+template <
+	BOOL bEnableDepthWrite = TRUE,
+	D3D11_COMPARISON_FUNC DepthTest = D3D11_COMPARISON_LESS,
+	BOOL bEnableFrontFaceStencil = FALSE,
+	D3D11_COMPARISON_FUNC FrontFaceStencilTest = D3D11_COMPARISON_ALWAYS,
+	D3D11_STENCIL_OP FrontFaceStencilFailStencilOp = D3D11_STENCIL_OP_KEEP,
+	D3D11_STENCIL_OP FrontFaceDepthFailStencilOp = D3D11_STENCIL_OP_KEEP,
+	D3D11_STENCIL_OP FrontFacePassStencilOp = D3D11_STENCIL_OP_KEEP,
+	BOOL bEnableBackFaceStencil = FALSE,
+	D3D11_COMPARISON_FUNC BackFaceStencilTest = D3D11_COMPARISON_ALWAYS,
+	D3D11_STENCIL_OP BackFaceStencilFailStencilOp = D3D11_STENCIL_OP_KEEP,
+	D3D11_STENCIL_OP BackFaceDepthFailStencilOp = D3D11_STENCIL_OP_KEEP,
+	D3D11_STENCIL_OP BackFacePassStencilOp = D3D11_STENCIL_OP_KEEP,
+	UINT8 StencilReadMask = 0xFF,
+	UINT8 StencilWriteMask = 0xFF
+>
+class TStaticDepthStencilState
+{
+public:
+	TStaticDepthStencilState() {
+		m_Desc.DepthEnable = DepthTest != D3D11_COMPARISON_ALWAYS || bEnableDepthWrite;
+		m_Desc.DepthFunc = DepthTest;
+		m_Desc.DepthWriteMask = bEnableDepthWrite ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
+		m_Desc.StencilEnable = bEnableFrontFaceStencil || bEnableBackFaceStencil;
+		m_Desc.StencilWriteMask = StencilWriteMask;
+		m_Desc.StencilReadMask = StencilReadMask;
+		m_Desc.FrontFace.StencilFunc = FrontFaceStencilTest;
+		m_Desc.FrontFace.StencilPassOp = FrontFacePassStencilOp;
+		m_Desc.FrontFace.StencilDepthFailOp = FrontFaceDepthFailStencilOp;
+		m_Desc.FrontFace.StencilFailOp = FrontFaceStencilFailStencilOp;
+		m_Desc.BackFace.StencilFunc = BackFaceStencilTest;
+		m_Desc.BackFace.StencilPassOp = BackFacePassStencilOp;
+		m_Desc.BackFace.StencilDepthFailOp = BackFaceDepthFailStencilOp;
+		m_Desc.BackFace.StencilFailOp = BackFaceStencilFailStencilOp;
+	}
+
+	D3D11DSSWrapper GetDepthStencilState() const {
+		ID3D11DepthStencilState* pDepthStencilState;
+		g_D3DInterface.m_pDevice->CreateDepthStencilState(&m_Desc, &pDepthStencilState);
+		return pDepthStencilState;
+	}
+
+private:
+	D3D11_DEPTH_STENCIL_DESC m_Desc;
+};
 
 struct Global_D3D_Interface
 {
@@ -150,14 +271,31 @@ struct Global_D3D_Interface
 	D3D11RTVWrapper						m_pMainBackbuffer;
 	D3D11Texture2DWrapper				m_pMainDepthTexture;
 	D3D11DSVWrapper						m_pMainDepthbuffer;
+
+	void Reset() {
+		m_pDevice.Reset();
+		m_pDeviceContext.Reset();
+		m_pSwapChain.Reset();
+		m_pMainBackbuffer.Reset();
+		m_pMainDepthTexture.Reset();
+		m_pMainDepthbuffer.Reset();
+	}
 };
-extern Global_D3D_Interface g_D3DInterface;
+extern EFFECT_API Global_D3D_Interface g_D3DInterface;
 
 struct Global_Data
 {
 	std::vector<String> m_vecEffects;
 }; 
-extern Global_Data g_GlobalData;
+EFFECT_API Global_Data& GetGlobalData();
+EFFECT_API void RegisterEffects();
+
+#define REGISTER_EFFECT(ClassName, DisplayName) \
+	struct Effect##ClassName##Register { \
+		Effect##ClassName##Register() { \
+			GetGlobalData().m_vecEffects.emplace_back(_T(#DisplayName)); \
+		} \
+	} _Effect##ClassName##Register; \
 
 bool CreateDeviceAndImmediateContext(HWND hWnd);
 bool CreateShaders();
@@ -168,7 +306,6 @@ bool CreateSamplerStates();
 bool CreateRenderTargets();
 bool CreateConstantBuffers();
 bool LoadResources();
-void LoadGeoms();
 void RenderOneFrame();
 
 // Inputs
@@ -177,8 +314,11 @@ void NotifyKeyUp(UINT_PTR KeyValue);
 void NotifyLButtonDown(WORD X, WORD Y);
 void NotifyLButtonUp(WORD X, WORD Y);
 void NotifyMouseMove(WORD X, WORD Y);
+void NotifyRButtonDown(WORD X, WORD Y);
 void NotifyRButtonUp(WORD X, WORD Y);
 void TickInput();
+
+void GlobalEffectReset();
 
 using RetBoolFunc = bool(*)();
 using Func = void(*)();
@@ -253,7 +393,7 @@ protected:
 		D3D11_SUBRESOURCE_DATA PositionData;
 		PositionData.pSysMem = pData;
 		PositionData.SysMemPitch = PositionData.SysMemSlicePitch = 0;
-		return SUCCEEDED(g_pd3dDevice->CreateBuffer(&PositionBufferDesc, &PositionData, ppBuffer));
+		return SUCCEEDED(g_D3DInterface.m_pDevice->CreateBuffer(&PositionBufferDesc, &PositionData, ppBuffer));
 	}
 
 protected:
@@ -355,10 +495,10 @@ struct Geom {
 	}
 };
 
-void AddGeom(VB_Base* pVB, ID3D11Buffer* pIndexBuffer, UINT NumIndex, XMMATRIX WorldMatrix);
-const std::vector<Geom>& GetGeoms();
-
-void DrawOneGeom(const Geom& InGeom);
+EFFECT_API void AddGeom(VB_Base* pVB, ID3D11Buffer* pIndexBuffer, UINT NumIndex, XMMATRIX WorldMatrix);
+EFFECT_API const std::vector<Geom>& GetGeoms();
+EFFECT_API void ClearGeoms();
+EFFECT_API void DrawOneGeom(const Geom& InGeom);
 
 class SimpleRT
 {
@@ -398,12 +538,12 @@ inline XMVECTOR MakeD3DVECTOR(float x, float y, float z)
 	return XMVectorSet(x, y, z, 0.0f);
 }
 
-extern XMMATRIX g_CameraMatrix;
-extern XMMATRIX g_ProjectionMatrix;
-extern XMMATRIX g_CameraProjectionMatrix;
-extern XMMATRIX g_InvCameraMatrix;
-extern XMMATRIX g_InvProjectionMatrix;
-extern XMMATRIX g_InvCameraProjectionMatrix;
+extern EFFECT_API XMMATRIX g_CameraMatrix;
+extern EFFECT_API XMMATRIX g_ProjectionMatrix;
+extern EFFECT_API XMMATRIX g_CameraProjectionMatrix;
+extern EFFECT_API XMMATRIX g_InvCameraMatrix;
+extern EFFECT_API XMMATRIX g_InvProjectionMatrix;
+extern EFFECT_API XMMATRIX g_InvCameraProjectionMatrix;
 
 struct alignas(16) GeomBuffer 
 {
@@ -411,32 +551,32 @@ struct alignas(16) GeomBuffer
 	XMFLOAT4X4A WorldView;
 	XMFLOAT4X4A WorldViewProj;
 };
-extern GeomBuffer g_GeomBuffer;
+// extern GeomBuffer g_GeomBuffer;
 
 struct alignas(16) GeomInvBuffer
 {
 	XMFLOAT4X4A InvProj;
 	XMFLOAT4X4A InvViewProj;
 };
-extern GeomInvBuffer g_GeomInvBuffer;
+// extern GeomInvBuffer g_GeomInvBuffer;
 
 struct alignas(16) GeomITBuffer
 {
 	XMFLOAT4X4A WorldIT;
 	XMFLOAT4X4A WorldViewIT;
 };
-extern GeomITBuffer g_GeomITBuffer;
+// extern GeomITBuffer g_GeomITBuffer;
 
-XMVECTOR GetCameraViewDirection();
-XMMATRIX GetCameraMatrix();
-XMMATRIX GetCameraMatrixWithoutTranslation();
-XMMATRIX GetInverseCameraMatrix();
-XMMATRIX GetProjectionMatrix();
-XMMATRIX GetInverseProjectionMatrix();
+EFFECT_API XMVECTOR GetCameraViewDirection();
+EFFECT_API XMMATRIX GetCameraMatrix();
+EFFECT_API XMMATRIX GetCameraMatrixWithoutTranslation();
+EFFECT_API XMMATRIX GetInverseCameraMatrix();
+EFFECT_API XMMATRIX GetPerspectiveProjectionMatrix();
+EFFECT_API XMMATRIX GetInversePerspectiveProjectionMatrix();
 
-void SyncGeomConstantBuffer(XMMATRIX World);
+EFFECT_API void SyncGeomConstantBuffer(XMMATRIX World);
 
-XMFLOAT4A SRGBToRGB(FXMVECTOR srgb);
+EFFECT_API XMFLOAT4A SRGBToRGB(FXMVECTOR srgb);
 
 struct FileContent
 {
@@ -453,19 +593,22 @@ struct FileContent
 	}
 };
 
-bool LoadFile(LPCTSTR lpszFileName, _Out_ FileContent& FileContentRef);
+EFFECT_API bool LoadFile(LPCTSTR lpszFileName, _Out_ FileContent& FileContentRef);
 enum class EShaderModel {
 	ESM_5
 };
-bool CreateVertexShaderAndInputLayout(LPCTSTR pszFilePath, LPCSTR pszEntryPoint, EShaderModel ShaderModel, ID3D11VertexShader** ppVertexShader,
+EFFECT_API bool CreateVertexShaderAndInputLayout(LPCTSTR pszFilePath, LPCSTR pszEntryPoint, EShaderModel ShaderModel, ID3D11VertexShader** ppVertexShader,
 	const D3D11_INPUT_ELEMENT_DESC* InputLayoutElements, UINT NumElements, ID3D11InputLayout** ppInputLayout);
-bool CreateComputeShader(LPCTSTR pszFilePath, LPCSTR pszEntryPoint, EShaderModel ShaderModel, ID3D11ComputeShader** ppComputeShader);
-bool CreatePixelShader(LPCTSTR pszFilePath, LPCSTR pszEntryPoint, EShaderModel ShaderModel, ID3D11PixelShader** ppPixelShader);
-bool LoadJpegTextureFromFile(LPCTSTR lpszFileName, bool bGammaCorrection, ID3D11Texture2D** ppTexture2D, ID3D11ShaderResourceView** ppSRV);
+EFFECT_API bool CreateComputeShader(LPCTSTR pszFilePath, LPCSTR pszEntryPoint, EShaderModel ShaderModel, ID3D11ComputeShader** ppComputeShader);
+EFFECT_API bool CreatePixelShader(LPCTSTR pszFilePath, LPCSTR pszEntryPoint, EShaderModel ShaderModel, ID3D11PixelShader** ppPixelShader);
+EFFECT_API bool LoadJpegTextureFromFile(LPCTSTR lpszFileName, bool bGammaCorrection, ID3D11Texture2D** ppTexture2D, ID3D11ShaderResourceView** ppSRV);
 
-class CShaderHeaderInclude : public ID3DInclude
+class EFFECT_API CShaderHeaderInclude : public ID3DInclude
 {
 public:
     STDMETHOD(Open)(THIS_ D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID *ppData, UINT *pBytes) override;
     STDMETHOD(Close)(THIS_ LPCVOID pData) override;
+
+private:
+	LPVOID m_pFileContent = nullptr;
 };

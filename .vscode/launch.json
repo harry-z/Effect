@@ -5,26 +5,28 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "Win32 Debug",
+			"name": "Win64 Debug",
 			"type": "cppvsdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/Build/Debug/Effect.exe",
+			"program": "${workspaceFolder}/build/windows/x64/debug/Effect.exe",
 			"args": [],
 			"stopAtEntry": false,
-			"cwd": "${fileDirname}",
+			"cwd": "${workspaceFolder}/build/windows/x64/debug",
 			"environment": [],
-			"console": "internalConsole"
+			"console": "externalTerminal",
+			"preLaunchTask": "Win64 Debug Build"
 		},
 		{
-			"name": "Win32 Release",
+			"name": "Win64 Release",
 			"type": "cppvsdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/Build/Release/Effect.exe",
+			"program": "${workspaceFolder}/build/windows/x64/release/Effect.exe",
 			"args": [],
 			"stopAtEntry": false,
-			"cwd": "${fileDirname}",
+			"cwd": "${workspaceFolder}/build/windows/x64/release",
 			"environment": [],
-			"console": "internalConsole"
+			"console": "externalTerminal",
+			"preLaunchTask": "Win64 Release Build"
 		}
 	]
 }

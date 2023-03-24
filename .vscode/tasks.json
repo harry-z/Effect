@@ -3,15 +3,15 @@
 	"tasks": [
 	  {
 		"type": "shell",
-		"label": "Win32 Debug Build",
-		"command": "${workspaceFolder}/Build.bat Debug",
+		"label": "Win64 Debug Build",
+		"command": "${workspaceFolder}/Build.bat debug",
 		"problemMatcher": ["$msCompile"],
 		"group": "build"
 	  },
 	  {
 		"type": "shell",
-		"label": "Win32 Release Build",
-		"command": "${workspaceFolder}/Build.bat Release",
+		"label": "Win64 Release Build",
+		"command": "${workspaceFolder}/Build.bat release",
 		"problemMatcher": ["$msCompile"],
 		"group": "build"
 	  }

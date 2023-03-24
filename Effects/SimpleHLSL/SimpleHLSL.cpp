@@ -1,7 +1,9 @@
 #include "../../Effect.h"
 
 
-
+D3D11BSWrapper g_pBlendState;
+D3D11RSWrapper g_pRasterizerState;
+D3D11DSSWrapper g_pDepthStencilState;
 D3D11InputLayoutWrapper g_pInputLayout;
 D3D11VertexShaderWrapper g_pGeomShader;
 D3D11PixelShaderWrapper g_pColorShader;
@@ -14,9 +16,9 @@ bool CreateShaders()
 	};
 	UINT NumElements = sizeof(InputLayoutDesc) / sizeof(InputLayoutDesc[0]);
 
-	wchar_t szShaderFileName[MAX_PATH];
-	wcscpy_s(szShaderFileName, GetExePath());
-	wcscat_s(szShaderFileName, L"SimpleHLSL.hlsl");
+	TCHAR szShaderFileName[MAX_PATH];
+	_tcscpy_s(szShaderFileName, GetExePath());
+	_tcscpy_s(szShaderFileName, _T("Shaders\\SimpleHLSL.hlsl"));
 	if (!CreateVertexShaderAndInputLayout(szShaderFileName, "GeometryVS", EShaderModel::ESM_5, g_pGeomShader, 
 		InputLayoutDesc, NumElements, g_pInputLayout))
 		return false;
@@ -27,41 +29,24 @@ bool CreateShaders()
 }
 
 bool CreateBlendStates()
-{
+{	
+	g_pBlendState = TStaticBlendState<>().GetBlendState();
 	return true;
 }
 
 bool CreateRasterizerStates()
 {
+	g_pRasterizerState = TStaticRasterizerState<>().GetRasterizerState();
 	return true;
 }
 
 bool CreateDepthStencilStates()
 {
-	return true;
-}
-
-bool CreateSamplerStates()
-{
-	return true;
-}
-
-bool CreateRenderTargets()
-{
-	return true;
-}
-
-bool CreateConstantBuffers()
-{
+	g_pDepthStencilState = TStaticDepthStencilState<>().GetDepthStencilState();
 	return true;
 }
 
 bool LoadResources()
-{
-	return true;
-}
-
-void LoadGeoms()
 {
 	VB_Position* pPositionVB = new VB_Position;
 	float VBData[] = {
@@ -74,6 +59,8 @@ void LoadGeoms()
 		AddGeom(pPositionVB, nullptr, 0, XMMatrixIdentity());
 	else
 		delete pPositionVB;
+
+	return true;
 }
 
 void RenderOneFrame()
@@ -86,35 +73,50 @@ void RenderOneFrame()
 	SyncGeomConstantBuffer(World);
 
 	float ClearBackBufferColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	g_pImmediateContext->ClearRenderTargetView(g_pOrigRTV, ClearBackBufferColor);
-	g_pImmediateContext->ClearDepthStencilView(g_pOrigDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-	g_pImmediateContext->OMSetRenderTargets(1, g_pOrigRTV, g_pOrigDSV);
+	g_D3DInterface.m_pDeviceContext->ClearRenderTargetView(g_D3DInterface.m_pMainBackbuffer, ClearBackBufferColor);
+	g_D3DInterface.m_pDeviceContext->ClearDepthStencilView(g_D3DInterface.m_pMainDepthbuffer, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+	g_D3DInterface.m_pDeviceContext->OMSetRenderTargets(1, g_D3DInterface.m_pMainBackbuffer, g_D3DInterface.m_pMainDepthbuffer);
 
-	g_pImmediateContext->RSSetState(g_pBackCullRS);
+	g_D3DInterface.m_pDeviceContext->RSSetState(g_pRasterizerState);
 	float BlendFactor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	g_pImmediateContext->OMSetBlendState(g_pOverwriteBS, BlendFactor, 0xffffffff);
-	g_pImmediateContext->OMSetDepthStencilState(g_pLessEqualDS, 0);
+	g_D3DInterface.m_pDeviceContext->OMSetBlendState(g_pBlendState, BlendFactor, 0xffffffff);
+	g_D3DInterface.m_pDeviceContext->OMSetDepthStencilState(g_pDepthStencilState, 0);
 
-	g_pImmediateContext->VSSetShader(g_pGeomShader, nullptr, 0);
-	g_pImmediateContext->PSSetShader(g_pColorShader, nullptr, 0);
+	g_D3DInterface.m_pDeviceContext->VSSetShader(g_pGeomShader, nullptr, 0);
+	g_D3DInterface.m_pDeviceContext->PSSetShader(g_pColorShader, nullptr, 0);
 
-	g_pImmediateContext->IASetInputLayout(g_pInputLayout);
+	g_D3DInterface.m_pDeviceContext->IASetInputLayout(g_pInputLayout);
 	for (const auto& Geom : GetGeoms())
 		DrawOneGeom(Geom);
 }
 
-#ifdef SIMPLE_HLSL_API
-	#define EXPORT_API __declspec(dllexport)
+#ifdef SIMPLE_HLSL_EXPORT_SYMBOL
+	#define SIMPLE_HLSL_API __declspec(dllexport)
 #else
-	#define EXPORT_API
+	#define SIMPLE_HLSL_API
 #endif
 
 extern "C" 
 {
-	EXPORT_API void InitializeEffectInstance(Effect_Instance* pEffect)
+	SIMPLE_HLSL_API void InitializeEffectInstance(Effect_Instance* pEffect)
 	{
 		pEffect->CreateShadersCallback = (RetBoolFunc)CreateShaders;
+		pEffect->CreateBlendStatesCallback = (RetBoolFunc)CreateBlendStates;
+		pEffect->CreateRasterizerStatesCallback = (RetBoolFunc)CreateRasterizerStates;
+		pEffect->CreateDepthStencilStatesCallback = (RetBoolFunc)CreateDepthStencilStates;
 		pEffect->LoadResourcesCallback = (RetBoolFunc)LoadResources;
 		pEffect->RenderOneFrameCallback = (Func)RenderOneFrame;
 	}
+
+	SIMPLE_HLSL_API void UninitializeEffectInstance()
+	{
+		g_pBlendState.Reset();
+		g_pRasterizerState.Reset();
+		g_pDepthStencilState.Reset();
+		g_pInputLayout.Reset();
+		g_pGeomShader.Reset();
+		g_pColorShader.Reset();
+	}
 }
+
+REGISTER_EFFECT(SimpleHLSL, SimpleHLSL)
