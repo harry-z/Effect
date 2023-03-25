@@ -3,6 +3,7 @@
 D3D11BSWrapper g_pBlendState;
 D3D11RSWrapper g_pRasterizerState;
 D3D11DSSWrapper g_pDepthStencilState;
+D3D11SSWrapper g_pSamplerState;
 D3D11InputLayoutWrapper g_pInputLayout;
 D3D11VertexShaderWrapper g_pGeometryShader;
 D3D11PixelShaderWrapper g_pEnvMapShader;
@@ -20,7 +21,7 @@ bool CreateShaders()
 
 	TCHAR szShaderFileName[MAX_PATH];
 	_tcscpy_s(szShaderFileName, GetExePath());
-	_tcscpy_s(szShaderFileName, _T("Shaders\\SimpleHLSL.hlsl"));
+	_tcscpy_s(szShaderFileName, _T("Shaders\\EnvMap.hlsl"));
 #ifdef DEBUG_SHADER
 	UINT CompileFlag = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #else
@@ -49,22 +50,21 @@ bool CreateRasterizerStates()
 
 bool CreateDepthStencilStates()
 {
-	g_pDepthStencilState = TStaticDepthStencilState<>().GetDepthStencilState();
+	g_pDepthStencilState = TStaticDepthStencilState<TRUE, D3D11_COMPARISON_LESS_EQUAL>().GetDepthStencilState();
 	return true;
 }
 
 bool CreateSamplerStates()
 {
+	g_pSamplerState = TStaticSamplerState<D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT>().GetSamplerState();
 	return true;
 }
-
-
 
 bool LoadResources()
 {
 	TCHAR szTextureFileName[MAX_PATH];
 	_tcscpy_s(szTextureFileName, GetExePath());
-	_tcscpy_s(szTextureFileName, _T("Arches_E_PineTree_8k.jpg"));
+	_tcscpy_s(szTextureFileName, _T("Resources\\Chelsea_Stairs_8k.jpg"));
 	if (!LoadJpegTextureFromFile(szTextureFileName, true, g_pEnvMap, g_pEnvMapSRV))
 		return false;
 
@@ -108,9 +108,24 @@ void RenderOneFrame()
 	g_D3DInterface.m_pDeviceContext->IASetInputLayout(g_pInputLayout);
 	g_D3DInterface.m_pDeviceContext->PSSetShader(g_pEnvMapShader, nullptr, 0);
 	g_D3DInterface.m_pDeviceContext->PSSetShaderResources(0, 1, g_pEnvMapSRV);
-	// g_pImmediateContext->PSSetSamplers(0, 1, g_pLinearSamplerState);
+	g_D3DInterface.m_pDeviceContext->PSSetSamplers(0, 1, g_pSamplerState);
 
-	// g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pParamsCB);
+	XMVECTOR Deter;
+	XMMATRIX Proj = GetPerspectiveProjectionMatrix();
+	XMMATRIX InvProj = XMMatrixInverse(&Deter, Proj);
+	XMStoreFloat4x4A(&g_GeomInvBuffer.InvProj, InvProj);
+		
+	XMMATRIX ViewProj = XMMatrixMultiply(GetCameraMatrixWithoutTranslation(), Proj);
+	XMMATRIX InvViewProj = XMMatrixInverse(&Deter, ViewProj);
+	XMStoreFloat4x4A(&g_GeomInvBuffer.InvViewProj, InvViewProj);
+
+	D3D11_MAPPED_SUBRESOURCE SubRc;
+	ZeroMemory(&SubRc, sizeof(D3D11_MAPPED_SUBRESOURCE));
+	g_D3DInterface.m_pDeviceContext->Map(g_pGeomInvBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &SubRc);
+	memcpy(SubRc.pData, &g_GeomInvBuffer, sizeof(GeomInvBuffer));
+	g_D3DInterface.m_pDeviceContext->Unmap(g_pGeomInvBuffer, 0);
+
+	g_D3DInterface.m_pDeviceContext->VSSetConstantBuffers(1, 1, g_pGeomInvBuffer);
 
 	if (g_pVertexBuffer.IsValid())
 	{
@@ -146,6 +161,7 @@ extern "C"
 		g_pBlendState.Reset();
 		g_pRasterizerState.Reset();
 		g_pDepthStencilState.Reset();
+		g_pSamplerState.Reset();
 		g_pInputLayout.Reset();
 		g_pGeometryShader.Reset();
 		g_pEnvMapShader.Reset();

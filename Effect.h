@@ -263,6 +263,46 @@ private:
 	D3D11_DEPTH_STENCIL_DESC m_Desc;
 };
 
+template <
+	D3D11_FILTER Filter = D3D11_FILTER_MIN_MAG_MIP_POINT,
+	D3D11_TEXTURE_ADDRESS_MODE AddressU = D3D11_TEXTURE_ADDRESS_CLAMP,
+	D3D11_TEXTURE_ADDRESS_MODE AddressV = D3D11_TEXTURE_ADDRESS_CLAMP,
+	D3D11_TEXTURE_ADDRESS_MODE AddressW = D3D11_TEXTURE_ADDRESS_CLAMP, 
+	UINT MipBias = 0,
+	UINT MinLOD = 0,
+	UINT MaxLOD = 0xFFFFFFFF,
+	UINT MaxAnisotropy = 1,
+	UINT BorderColor = 0x00000000, // ARGB
+	D3D11_COMPARISON_FUNC SamplerComparisonFunction = D3D11_COMPARISON_NEVER
+>
+class TStaticSamplerState
+{
+public:
+	TStaticSamplerState() {
+		m_Desc.Filter = Filter;
+		m_Desc.AddressU = AddressU;
+		m_Desc.AddressV = AddressV;
+		m_Desc.AddressW = AddressW;
+		m_Desc.MipLODBias = MipBias;
+		m_Desc.MinLOD = MinLOD;
+		m_Desc.MaxLOD = MaxLOD == 0xFFFFFFFF ? D3D11_FLOAT32_MAX : MaxLOD;
+		m_Desc.MaxAnisotropy = MaxAnisotropy;
+		m_Desc.BorderColor[0] = ((BorderColor >> 16) & 0x000000FF) / 255.0f;
+		m_Desc.BorderColor[1] = ((BorderColor >> 8) & 0x000000FF) / 255.0f;
+		m_Desc.BorderColor[2] = ((BorderColor) & 0x000000FF) / 255.0f;
+		m_Desc.BorderColor[3] = ((BorderColor >> 24) & 0x000000FF) / 255.0f;
+	}
+
+	D3D11SSWrapper GetSamplerState() const {
+		ID3D11SamplerState* pSamplerState;
+		g_D3DInterface.m_pDevice->CreateSamplerState(&m_Desc, &pSamplerState);
+		return pSamplerState;
+	}
+
+private:
+	D3D11_SAMPLER_DESC m_Desc;
+};
+
 struct Global_D3D_Interface
 {
 	D3D11DeviceWrapper 					m_pDevice;
@@ -551,21 +591,25 @@ struct alignas(16) GeomBuffer
 	XMFLOAT4X4A WorldView;
 	XMFLOAT4X4A WorldViewProj;
 };
-// extern GeomBuffer g_GeomBuffer;
+extern EFFECT_API GeomBuffer g_GeomBuffer;
 
 struct alignas(16) GeomInvBuffer
 {
 	XMFLOAT4X4A InvProj;
 	XMFLOAT4X4A InvViewProj;
 };
-// extern GeomInvBuffer g_GeomInvBuffer;
+extern EFFECT_API GeomInvBuffer g_GeomInvBuffer;
 
 struct alignas(16) GeomITBuffer
 {
 	XMFLOAT4X4A WorldIT;
 	XMFLOAT4X4A WorldViewIT;
 };
-// extern GeomITBuffer g_GeomITBuffer;
+extern EFFECT_API GeomITBuffer g_GeomITBuffer;
+
+extern EFFECT_API D3D11BufferWrapper g_pGeomBuffer;
+extern EFFECT_API D3D11BufferWrapper g_pGeomInvBuffer;
+extern EFFECT_API D3D11BufferWrapper g_pGeomITBuffer;
 
 EFFECT_API XMVECTOR GetCameraViewDirection();
 EFFECT_API XMMATRIX GetCameraMatrix();

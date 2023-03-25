@@ -1,5 +1,6 @@
 #include "Effect.h"
-#include "jpgd.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 bool LoadFile(LPCTSTR lpszFileName, FileContent& FileContentRef)
 {
@@ -157,15 +158,15 @@ bool LoadJpegTextureFromFile(LPCTSTR lpszFileName, bool bGammaCorrection, ID3D11
 		return false;
 
 	int width, height, actual_comps;
-	unsigned char* pDecompressedData = jpgd::decompress_jpeg_image_from_memory((BYTE*)TextureContent.m_pContent, TextureContent.m_nLength, &width, &height, &actual_comps, 4, 1);
-	if (pDecompressedData)
+	stbi_uc* pData = stbi_load_from_memory((stbi_uc const*)TextureContent.m_pContent, TextureContent.m_nLength, &width, &height, &actual_comps, STBI_rgb_alpha);
+	if (pData)
 	{
 		D3D11_TEXTURE2D_DESC Desc;
 		Desc.Width = width;
 		Desc.Height = height;
 		Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 		Desc.CPUAccessFlags = 0;
-		Desc.Format = bGammaCorrection ? DXGI_FORMAT_B8G8R8A8_UNORM_SRGB : DXGI_FORMAT_B8G8R8X8_UNORM;
+		Desc.Format = bGammaCorrection ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
 		Desc.ArraySize = 1;
 		Desc.MipLevels = 1;
 		Desc.MiscFlags = 0;
@@ -174,13 +175,13 @@ bool LoadJpegTextureFromFile(LPCTSTR lpszFileName, bool bGammaCorrection, ID3D11
 		Desc.SampleDesc.Quality = 0;
 
 		D3D11_SUBRESOURCE_DATA SubData;
-		SubData.pSysMem = pDecompressedData;
-		SubData.SysMemPitch = width * sizeof(unsigned char) * 4;
+		SubData.pSysMem = pData;
+		SubData.SysMemPitch = width * sizeof(stbi_uc) * STBI_rgb_alpha;
 		SubData.SysMemSlicePitch = 0;
 
 		if (SUCCEEDED(g_D3DInterface.m_pDevice->CreateTexture2D(&Desc, &SubData, ppTexture2D)))
 		{
-			free(pDecompressedData);
+			stbi_image_free(pData);
 
 			if (SUCCEEDED(g_D3DInterface.m_pDevice->CreateShaderResourceView(*ppTexture2D, nullptr, ppSRV)))
 				return true;
@@ -191,7 +192,7 @@ bool LoadJpegTextureFromFile(LPCTSTR lpszFileName, bool bGammaCorrection, ID3D11
 			}
 		}
 
-		free(pDecompressedData);
+		stbi_image_free(pData);
 	}
 
 	return false;
