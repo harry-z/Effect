@@ -16,6 +16,13 @@ target("EnvMap")
     add_deps("EffectMain")
 target_end()
 
+target("PBR")
+    set_kind("shared")
+    add_defines("PBR_EXPORT_SYMBOL")
+    add_files("Effects/PBR/*.cpp")
+    add_deps("EffectMain")
+target_end()
+
 target("EffectMain")
     set_kind("shared")
     add_defines("EFFECT_EXPORT_SYMBOL")

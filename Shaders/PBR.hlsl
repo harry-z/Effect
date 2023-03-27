@@ -1,10 +1,11 @@
-#include "ShaderHeader.h"
+#include "Shaders/ShaderHeader.h"
 
 cbuffer ShadingConstants : register(b3)
 {
 	float4 g_viewDir;
 	float4 g_lightDir;
 	float4 g_albedo;
+	float4 g_lightColor;
 	float2 g_SmoothAndMetallic;
 };
 
@@ -24,7 +25,8 @@ Geometry_VSOut GeometryVS ( Geometry_VSIn IN )
 {
     Geometry_VSOut OUT;
     OUT.HPosition = mul(IN.position, WorldViewProj);
-    OUT.Normal = normalize(mul(IN.normal, (float3x3)WorldIT).xyz);
+    // OUT.Normal = normalize(mul(IN.normal, (float3x3)WorldIT).xyz);
+	OUT.Normal = normalize(mul(float4(IN.normal, 0.0f), World).xyz);
     return OUT;
 }
 
@@ -91,11 +93,11 @@ float3 SpecularColor( float4 ShadingParams )
 {
 	float Roughness = 1.0f - g_SmoothAndMetallic.x;
 	float3 F0 = ComputeF0(g_albedo.xyz, g_albedo.w, g_SmoothAndMetallic.y);
-	float3 Fresnel = F0 + (float3(1.0f, 1.0f, 1.0f) - F0) * pow(1.0f - ShadingParams.w, 5.0f);
+	float3 Fresnel = F0 + (float3(1.0f, 1.0f, 1.0f) - F0) * pow(1.0f - ShadingParams.z, 5.0f);
 
 	float G_GGX = G_Smith(Roughness, ShadingParams.y, ShadingParams.x);
 	float D_GGX = NDF(Roughness, ShadingParams.z);
-	return Fresnel * G_GGX * D_GGX / (4.0f * ShadingParams.x * ShadingParams.y);
+	return Fresnel * G_GGX * D_GGX / (4.0f * ShadingParams.x * ShadingParams.y + 1e-5);
 }
 
 float4 PBRShading( Geometry_VSOut IN ) : SV_Target
@@ -108,6 +110,6 @@ float4 PBRShading( Geometry_VSOut IN ) : SV_Target
 		saturate(dot(Normal, Half)), // NoH
 		saturate(dot(Half, g_lightDir.xyz))) // HoL
 		;
-	float3 Result = (DiffuseColor(ShadingParams) + SpecularColor(ShadingParams)) * ShadingParams.x;
+	float3 Result = (DiffuseColor(ShadingParams) + PI * SpecularColor(ShadingParams)) * ShadingParams.x * g_lightColor.xyz;
 	return float4(saturate(pow(Result, 1.0f / 2.4f)), 1.0f);
 }

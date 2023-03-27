@@ -19,6 +19,7 @@ void RegisterEffects()
 {
 	REGISTER_EFFECT(SimpleHLSL, SimpleHLSL)
 	REGISTER_EFFECT(EnvMap, EnvMap)
+	REGISTER_EFFECT(PBR, PBR)
 }
 
 bool CreateDeviceAndImmediateContext(HWND hWnd)
@@ -450,6 +451,45 @@ XMMATRIX g_InvCameraMatrix;
 XMMATRIX g_InvProjectionMatrix;
 XMMATRIX g_InvCameraProjectionMatrix;
 
+void UpdateCameraProjectionMatrix()
+{
+	XMVECTOR Deter;
+	{
+		XMVECTOR Minus = XMVectorSet(-1.0f, -1.0f, -1.0f, -1.0f);
+		XMVECTOR Row4 = MakeD3DPOINT(0.0f, 0.0f, 0.0f);
+
+		auto CalculateRow = [&Minus](XMVECTOR Axis, XMVECTOR Location) -> XMVECTOR {
+			XMVECTOR SwizzleAxis = XMVectorSwizzle(Axis, 3, 0, 1, 2);
+			XMVECTOR DotAxis = XMVector3Dot(Axis, Location); 
+			DotAxis = XMVectorMultiply(DotAxis, Minus); 
+			return XMVectorShiftLeft(SwizzleAxis, DotAxis, 1); 
+		};
+
+		XMMATRIX CameraMatrixTransposed(
+			CalculateRow(g_CameraData.m_CameraX, g_CameraData.m_CameraLocation),
+			CalculateRow(g_CameraData.m_CameraY, g_CameraData.m_CameraLocation),
+			CalculateRow(g_CameraData.m_CameraZ, g_CameraData.m_CameraLocation),
+			Row4
+		);
+		g_CameraMatrix = XMMatrixTranspose(CameraMatrixTransposed);
+		g_InvCameraMatrix = XMMatrixInverse(&Deter, g_CameraMatrix);
+	}
+	
+	{
+		constexpr float Fov = 45.0f * PI / 180.0f;
+		constexpr float Near = 0.1f;
+		constexpr float Far = 10000.0f;
+		RECT rect;
+		GetClientRect(GetHWnd(), &rect);
+		float AspectRatio = (float)(rect.right - rect.left) / (float)(rect.bottom - rect.top);
+		g_ProjectionMatrix = XMMatrixPerspectiveFovLH(Fov, AspectRatio, Near, Far);
+		g_InvProjectionMatrix = XMMatrixInverse(&Deter, g_ProjectionMatrix);
+	}
+
+	g_CameraProjectionMatrix = XMMatrixMultiply(g_CameraMatrix, g_ProjectionMatrix);
+	g_InvCameraProjectionMatrix = XMMatrixMultiply(g_InvProjectionMatrix, g_InvCameraMatrix);
+}
+
 XMVECTOR GetCameraViewDirection()
 {
 	return g_CameraData.m_CameraZ;
@@ -457,23 +497,7 @@ XMVECTOR GetCameraViewDirection()
 
 XMMATRIX GetCameraMatrix()
 {
-	XMVECTOR Minus = XMVectorSet(-1.0f, -1.0f, -1.0f, -1.0f);
-	XMVECTOR Row4 = MakeD3DPOINT(0.0f, 0.0f, 0.0f);
-
-	auto CalculateRow = [&Minus](XMVECTOR Axis, XMVECTOR Location) -> XMVECTOR {
-		XMVECTOR SwizzleAxis = XMVectorSwizzle(Axis, 3, 0, 1, 2);
-		XMVECTOR DotAxis = XMVector3Dot(Axis, Location); 
-		DotAxis = XMVectorMultiply(DotAxis, Minus); 
-		return XMVectorShiftLeft(SwizzleAxis, DotAxis, 1); 
-	};
-
-	XMMATRIX CameraMatrixTransposed(
-		CalculateRow(g_CameraData.m_CameraX, g_CameraData.m_CameraLocation),
-		CalculateRow(g_CameraData.m_CameraY, g_CameraData.m_CameraLocation),
-		CalculateRow(g_CameraData.m_CameraZ, g_CameraData.m_CameraLocation),
-		Row4
-	);
-	return XMMatrixTranspose(CameraMatrixTransposed);
+	return g_CameraMatrix;
 }
 
 XMMATRIX GetCameraMatrixWithoutTranslation()
@@ -490,25 +514,27 @@ XMMATRIX GetCameraMatrixWithoutTranslation()
 
 XMMATRIX GetInverseCameraMatrix()
 {
-	XMVECTOR Deter;
-	return XMMatrixInverse(&Deter, GetCameraMatrix());
+	return g_InvCameraMatrix;
 }
 
 XMMATRIX GetPerspectiveProjectionMatrix()
 {
-	constexpr float Fov = 45.0f * PI / 180.0f;
-	constexpr float Near = 0.1f;
-	constexpr float Far = 10000.0f;
-	RECT rect;
-	GetClientRect(GetHWnd(), &rect);
-	float AspectRatio = (float)(rect.right - rect.left) / (float)(rect.bottom - rect.top);
-	return XMMatrixPerspectiveFovLH(Fov, AspectRatio, Near, Far);
+	return g_ProjectionMatrix;
 }
 
 XMMATRIX GetInversePerspectiveProjectionMatrix()
 {
-	XMVECTOR Deter;
-	return XMMatrixInverse(&Deter, GetPerspectiveProjectionMatrix());
+	return g_InvProjectionMatrix;
+}
+
+XMMATRIX GetCameraProjectionMatrix()
+{
+	return g_CameraProjectionMatrix;
+}
+
+XMMATRIX GetInverseCameraProjectionMatrix()
+{
+	return g_InvCameraProjectionMatrix;
 }
 
 GeomBuffer g_GeomBuffer;
@@ -519,15 +545,6 @@ void SyncGeomConstantBuffer(XMMATRIX World)
 {
 	D3D11_MAPPED_SUBRESOURCE SubRc;
 	ZeroMemory(&SubRc, sizeof(D3D11_MAPPED_SUBRESOURCE));
-
-	g_CameraMatrix = GetCameraMatrix();
-	g_ProjectionMatrix = GetPerspectiveProjectionMatrix();
-	g_CameraProjectionMatrix = XMMatrixMultiply(g_CameraMatrix, g_ProjectionMatrix);
-
-	XMVECTOR Deter;
-	g_InvCameraMatrix = XMMatrixInverse(&Deter, g_CameraMatrix);
-	g_InvProjectionMatrix = XMMatrixInverse(&Deter, g_ProjectionMatrix);
-	g_InvCameraProjectionMatrix = XMMatrixInverse(&Deter, g_CameraProjectionMatrix);
 
 	XMStoreFloat4x4A(&g_GeomBuffer.World, World);
 	XMStoreFloat4x4A(&g_GeomBuffer.WorldView, XMMatrixMultiply(World, g_CameraMatrix));
@@ -543,6 +560,7 @@ void SyncGeomConstantBuffer(XMMATRIX World)
 	memcpy(SubRc.pData, &g_GeomInvBuffer, sizeof(GeomInvBuffer));
 	g_D3DInterface.m_pDeviceContext->Unmap(g_pGeomInvBuffer, 0);
 
+	XMVECTOR Deter;
 	XMStoreFloat4x4A(&g_GeomITBuffer.WorldIT, XMMatrixTranspose(XMMatrixInverse(&Deter, World)));
 	XMStoreFloat4x4A(&g_GeomITBuffer.WorldViewIT, XMMatrixTranspose(XMMatrixInverse(&Deter, XMMatrixMultiply(World, g_CameraMatrix))));
 	g_D3DInterface.m_pDeviceContext->Map(g_pGeomITBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &SubRc);

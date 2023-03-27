@@ -84,6 +84,7 @@ int EffectMain(int argc, TCHAR** argv)
                 }
 
                 TickInput();
+                UpdateCameraProjectionMatrix();
                 RenderOneFrame();
                 g_D3DInterface.m_pSwapChain->Present(0, 0);
             }
@@ -92,72 +93,11 @@ int EffectMain(int argc, TCHAR** argv)
             GlobalEffectReset();
             ::DestroyWindow(hWnd);
             ::FreeLibrary(hLib);
-            ::CloseHandle(hLib);
         }
     }   
 
     return 0;
 }
-
-// int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
-//                      _In_opt_ HINSTANCE hPrevInstance,
-//                      _In_ LPWSTR    lpCmdLine,
-//                      _In_ int       nCmdShow)
-// {
-//     UNREFERENCED_PARAMETER(hPrevInstance);
-//     UNREFERENCED_PARAMETER(lpCmdLine);
-
-//     // TODO: Place code here.
-
-    
-
-//     // Perform application initialization:
-//     if (!InitInstance(hInstance, nCmdShow))
-//     {
-//         return FALSE;
-//     }
-
-//     MSG msg;
-//     ZeroMemory(&msg, sizeof(MSG));
-
-//     XMVECTOR Deter;
-//     // Main message loop:
-//     while (msg.message != WM_QUIT)
-//     {
-//         if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
-//         {
-// 			TranslateMessage(&msg);
-// 			DispatchMessage(&msg);
-//         }
-
-//         TickInput();
-
-//         g_CameraMatrix = GetCameraMatrix();
-//         g_ProjectionMatrix = GetProjectionMatrix();
-//         g_CameraProjectionMatrix = XMMatrixMultiply(g_CameraMatrix, g_ProjectionMatrix);
-//         g_InvCameraMatrix = XMMatrixInverse(&Deter, g_CameraMatrix);
-//         g_InvProjectionMatrix = XMMatrixInverse(&Deter, g_ProjectionMatrix);
-//         g_InvCameraProjectionMatrix = XMMatrixMultiply(g_InvProjectionMatrix, g_InvCameraMatrix);
-
-//         XMStoreFloat4x4A(&g_GeomInvBuffer.InvProj, g_InvProjectionMatrix);
-//         XMStoreFloat4x4A(&g_GeomInvBuffer.InvViewProj, g_InvCameraProjectionMatrix);
-
-//         D3D11_MAPPED_SUBRESOURCE SubRc;
-//         ZeroMemory(&SubRc, sizeof(D3D11_MAPPED_SUBRESOURCE));
-//         g_pImmediateContext->Map(g_pGeomInvBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &SubRc);
-//         memcpy(SubRc.pData, &g_GeomInvBuffer, sizeof(GeomInvBuffer));
-//         g_pImmediateContext->Unmap(g_pGeomInvBuffer, 0);
-//         g_pImmediateContext->VSSetConstantBuffers(1, 1, g_pGeomInvBuffer);
-
-//         RenderOneFrame();
-
-//         g_pSwapChain->Present(0, 0);
-//     }
-    
-//     return (int) msg.wParam;
-// }
-
-
 
 //
 //  FUNCTION: MyRegisterClass()

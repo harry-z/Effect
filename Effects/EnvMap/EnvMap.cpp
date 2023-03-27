@@ -110,12 +110,11 @@ void RenderOneFrame()
 	g_D3DInterface.m_pDeviceContext->PSSetShaderResources(0, 1, g_pEnvMapSRV);
 	g_D3DInterface.m_pDeviceContext->PSSetSamplers(0, 1, g_pSamplerState);
 
-	XMVECTOR Deter;
-	XMMATRIX Proj = GetPerspectiveProjectionMatrix();
-	XMMATRIX InvProj = XMMatrixInverse(&Deter, Proj);
-	XMStoreFloat4x4A(&g_GeomInvBuffer.InvProj, InvProj);
+	
+	XMStoreFloat4x4A(&g_GeomInvBuffer.InvProj, GetInversePerspectiveProjectionMatrix());
 		
-	XMMATRIX ViewProj = XMMatrixMultiply(GetCameraMatrixWithoutTranslation(), Proj);
+	XMMATRIX ViewProj = XMMatrixMultiply(GetCameraMatrixWithoutTranslation(), GetPerspectiveProjectionMatrix());
+	XMVECTOR Deter;
 	XMMATRIX InvViewProj = XMMatrixInverse(&Deter, ViewProj);
 	XMStoreFloat4x4A(&g_GeomInvBuffer.InvViewProj, InvViewProj);
 

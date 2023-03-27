@@ -578,13 +578,6 @@ inline XMVECTOR MakeD3DVECTOR(float x, float y, float z)
 	return XMVectorSet(x, y, z, 0.0f);
 }
 
-extern EFFECT_API XMMATRIX g_CameraMatrix;
-extern EFFECT_API XMMATRIX g_ProjectionMatrix;
-extern EFFECT_API XMMATRIX g_CameraProjectionMatrix;
-extern EFFECT_API XMMATRIX g_InvCameraMatrix;
-extern EFFECT_API XMMATRIX g_InvProjectionMatrix;
-extern EFFECT_API XMMATRIX g_InvCameraProjectionMatrix;
-
 struct alignas(16) GeomBuffer 
 {
 	XMFLOAT4X4A World;
@@ -611,12 +604,15 @@ extern EFFECT_API D3D11BufferWrapper g_pGeomBuffer;
 extern EFFECT_API D3D11BufferWrapper g_pGeomInvBuffer;
 extern EFFECT_API D3D11BufferWrapper g_pGeomITBuffer;
 
+EFFECT_API void UpdateCameraProjectionMatrix();
 EFFECT_API XMVECTOR GetCameraViewDirection();
 EFFECT_API XMMATRIX GetCameraMatrix();
 EFFECT_API XMMATRIX GetCameraMatrixWithoutTranslation();
 EFFECT_API XMMATRIX GetInverseCameraMatrix();
 EFFECT_API XMMATRIX GetPerspectiveProjectionMatrix();
 EFFECT_API XMMATRIX GetInversePerspectiveProjectionMatrix();
+EFFECT_API XMMATRIX GetCameraProjectionMatrix();
+EFFECT_API XMMATRIX GetInverseCameraProjectionMatrix();
 
 EFFECT_API void SyncGeomConstantBuffer(XMMATRIX World);
 

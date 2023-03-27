@@ -1,10 +1,22 @@
-#include "Effect.h"
+#include "../../Effect.h"
 
-#ifdef PBR_EFFECT
-
+D3D11BSWrapper g_pBlendState;
+D3D11RSWrapper g_pRasterizerState;
+D3D11DSSWrapper g_pDepthStencilState;
 D3D11InputLayoutWrapper g_pInputLayout;
 D3D11VertexShaderWrapper g_pGeometryShader;
 D3D11PixelShaderWrapper g_pPBRShader;
+D3D11BufferWrapper g_pShadingParamsCB;
+
+struct alignas(16) ShadingParams
+{
+	XMFLOAT4A ViewDir;
+	XMFLOAT4A LightDir;
+	XMFLOAT4A Albedo;
+	XMFLOAT4A LightColor;
+	XMFLOAT4A SmoothnessAndMetalness;
+} g_ShadingParams;
+
 bool CreateShaders()
 {
 	const D3D11_INPUT_ELEMENT_DESC InputLayoutDesc[] =
@@ -14,9 +26,9 @@ bool CreateShaders()
 	};
 	UINT NumElements = sizeof(InputLayoutDesc) / sizeof(InputLayoutDesc[0]);
 
-	wchar_t szShaderFileName[MAX_PATH];
-	wcscpy_s(szShaderFileName, GetExePath());
-	wcscat_s(szShaderFileName, L"PBR.hlsl");
+	TCHAR szShaderFileName[MAX_PATH];
+	_tcscpy_s(szShaderFileName, GetExePath());
+	_tcscpy_s(szShaderFileName, _T("Shaders\\PBR.hlsl"));
 	if (!CreateVertexShaderAndInputLayout(szShaderFileName, "GeometryVS", EShaderModel::ESM_5, g_pGeometryShader, 
 		InputLayoutDesc, NumElements, g_pInputLayout))
 		return false;
@@ -27,50 +39,37 @@ bool CreateShaders()
 
 bool CreateBlendStates()
 {
+	g_pBlendState = TStaticBlendState<>().GetBlendState();
 	return true;
 }
 
 bool CreateRasterizerStates()
 {
+	g_pRasterizerState = TStaticRasterizerState<>().GetRasterizerState();
 	return true;
 }
 
 bool CreateDepthStencilStates()
 {
+	g_pDepthStencilState = TStaticDepthStencilState<>().GetDepthStencilState();
 	return true;
 }
 
-bool CreateSamplerStates()
-{
-	return true;
-}
-
-bool CreateRenderTargets()
-{
-	return true;
-}
-
-D3D11BufferWrapper g_pShadingParamsCB;
 bool CreateConstantBuffers()
 {
 	D3D11_BUFFER_DESC ShadingParamsDesc;
-	ShadingParamsDesc.ByteWidth = sizeof(float) * 16;
+	ShadingParamsDesc.ByteWidth = sizeof(ShadingParams);
 	ShadingParamsDesc.Usage = D3D11_USAGE_DYNAMIC;
 	ShadingParamsDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	ShadingParamsDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	ShadingParamsDesc.MiscFlags = 0;
 	ShadingParamsDesc.StructureByteStride = 0;
-	if (FAILED(g_pd3dDevice->CreateBuffer(&ShadingParamsDesc, nullptr, g_pShadingParamsCB)))
+	if (FAILED(g_D3DInterface.m_pDevice->CreateBuffer(&ShadingParamsDesc, nullptr, g_pShadingParamsCB)))
 		return false;
 	return true;
 }
 
 bool LoadResources()
-{
-	return true;
-}
-
-void LoadGeoms()
 {
 	constexpr UINT LatStep = 36; 
 	constexpr UINT LonStep = 72;
@@ -143,17 +142,17 @@ void LoadGeoms()
 	
 	HRESULT hr;
 
-	float XPositions[] = { -500.0f, -400.0f, -300.0f, -200.0f, -100.0f, 0.0f, 100.0f, 200.0f, 300.0f, 400.0f, 500.0f };
-	float YPositions[] = { -500.0f, -400.0f, -300.0f, -200.0f, -100.0f, 0.0f, 100.0f, 200.0f, 300.0f, 400.0f, 500.0f };
-	for (UINT i = 0; i < 11; ++i)
+	float XPositions[] = { -400.0f, -300.0f, -200.0f, -100.0f, 0.0f, 100.0f, 200.0f, 300.0f, 400.0f };
+	float YPositions[] = { -400.0f, -300.0f, -200.0f, -100.0f, 0.0f, 100.0f, 200.0f, 300.0f, 400.0f };
+	for (UINT i = 0; i < 9; ++i)
 	{
-		for (UINT j = 0; j < 11; ++j)
+		for (UINT j = 0; j < 9; ++j)
 		{
 			D3D11_SUBRESOURCE_DATA IndexData;
 			IndexData.pSysMem = pIndexBuffer;
 			IndexData.SysMemPitch = IndexData.SysMemSlicePitch = 0;
 			ID3D11Buffer* pD3DIndexBuffer = nullptr;
-			if (FAILED(hr = g_pd3dDevice->CreateBuffer(&IndexBufferDesc, &IndexData, &pD3DIndexBuffer)))
+			if (FAILED(hr = g_D3DInterface.m_pDevice->CreateBuffer(&IndexBufferDesc, &IndexData, &pD3DIndexBuffer)))
 				continue;
 			VB_PositionNormal* pPositionNormal = new VB_PositionNormal;
 			if (pPositionNormal->Initialize(pPositionBuffer, pNormalBuffer, NumVertices))
@@ -169,62 +168,88 @@ void LoadGeoms()
 	delete[] pPositionBuffer;
 	delete[] pNormalBuffer;
 	delete[] pIndexBuffer;
+
+	return true;
 }
 
-struct alignas(16) ShadingParams
-{
-	XMFLOAT4A ViewDir;
-	XMFLOAT4A LightDir;
-	XMFLOAT4A Albedo;
-	XMFLOAT4A SmoothnessAndMetalness;
-} g_ShadingParams;
+
 
 void RenderOneFrame()
 {
 	float ClearColorFront[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	g_pImmediateContext->ClearRenderTargetView(g_pOrigRTV, ClearColorFront);
-	g_pImmediateContext->ClearDepthStencilView(g_pOrigDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-	g_pImmediateContext->OMSetRenderTargets(1, g_pOrigRTV, g_pOrigDSV);
+	g_D3DInterface.m_pDeviceContext->ClearRenderTargetView(g_D3DInterface.m_pMainBackbuffer, ClearColorFront);
+	g_D3DInterface.m_pDeviceContext->ClearDepthStencilView(g_D3DInterface.m_pMainDepthbuffer, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+	g_D3DInterface.m_pDeviceContext->OMSetRenderTargets(1, g_D3DInterface.m_pMainBackbuffer, g_D3DInterface.m_pMainDepthbuffer);
 
 	float BLEND_FACTOR[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	g_pImmediateContext->OMSetBlendState(g_pOverwriteBS, BLEND_FACTOR, 0xffffffff);
-	g_pImmediateContext->OMSetDepthStencilState(g_pLessEqualDS, 0);
-	g_pImmediateContext->RSSetState(g_pBackCullRS);
+	g_D3DInterface.m_pDeviceContext->OMSetBlendState(g_pBlendState, BLEND_FACTOR, 0xffffffff);
+	g_D3DInterface.m_pDeviceContext->OMSetDepthStencilState(g_pDepthStencilState, 0);
+	g_D3DInterface.m_pDeviceContext->RSSetState(g_pRasterizerState);
 
 	XMStoreFloat4A(&g_ShadingParams.ViewDir, XMVectorNegate(GetCameraViewDirection()));
-	XMVECTOR LightDir = MakeD3DVECTOR(-0.7f, 1.0f, 0.5f);
+	XMVECTOR LightDir = MakeD3DVECTOR(1.0f, 1.0f, 1.0f);
 	LightDir = XMVector3Normalize(LightDir);
 	XMStoreFloat4A(&g_ShadingParams.LightDir, LightDir);
 
-	g_pImmediateContext->VSSetShader(g_pGeometryShader, nullptr, 0);
-	g_pImmediateContext->IASetInputLayout(g_pInputLayout);
-	g_pImmediateContext->PSSetShader(g_pPBRShader, nullptr, 0);
+	g_D3DInterface.m_pDeviceContext->VSSetShader(g_pGeometryShader, nullptr, 0);
+	g_D3DInterface.m_pDeviceContext->IASetInputLayout(g_pInputLayout);
+	g_D3DInterface.m_pDeviceContext->PSSetShader(g_pPBRShader, nullptr, 0);
 
-	XMFLOAT4A Albedo(1.0f, 0.0f, 0.0f, 0.5f);
-	float Smoothness[] = { 0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f };
-	float Metalness[] = { 0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f };
-	// float Metalness = 0.5f;
+	XMFLOAT4A Albedo(1.0f, 0.71f, 0.29f, 0.5f);
+	XMFLOAT4A LightColor(1.0f, 1.0f, 1.0f, 1.0f);
+	float Smoothness[] = { 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f };
+	float Metalness[] = { 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f };
 
-	for (UINT i = 0; i < 11; ++i)
+	for (UINT i = 0; i < 9; ++i)
 	{
-		for (UINT j = 0; j < 11; ++j)
+		for (UINT j = 0; j < 9; ++j)
 		{
-			SyncGeomConstantBuffer(GetGeoms()[i * 11 + j].m_WorldMatrix);
+			SyncGeomConstantBuffer(GetGeoms()[i * 9 + j].m_WorldMatrix);
 
 			D3D11_MAPPED_SUBRESOURCE SubRc;
 
 			g_ShadingParams.Albedo = Albedo;
+			g_ShadingParams.LightColor = LightColor;
 			g_ShadingParams.SmoothnessAndMetalness.x = Smoothness[i];
 			g_ShadingParams.SmoothnessAndMetalness.y = Metalness[j];
 			ZeroMemory(&SubRc, sizeof(D3D11_MAPPED_SUBRESOURCE));
-			g_pImmediateContext->Map(g_pShadingParamsCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &SubRc);
+			g_D3DInterface.m_pDeviceContext->Map(g_pShadingParamsCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &SubRc);
 			memcpy(SubRc.pData, &g_ShadingParams.ViewDir, sizeof(ShadingParams));
-			g_pImmediateContext->Unmap(g_pShadingParamsCB, 0);
-			g_pImmediateContext->PSSetConstantBuffers(3, 1, g_pShadingParamsCB);
+			g_D3DInterface.m_pDeviceContext->Unmap(g_pShadingParamsCB, 0);
+			g_D3DInterface.m_pDeviceContext->PSSetConstantBuffers(3, 1, g_pShadingParamsCB);
 
-			DrawOneGeom(GetGeoms()[i * 11 + j]);
+			DrawOneGeom(GetGeoms()[i * 9 + j]);
 		}
 	}
 }
 
+#ifdef PBR_EXPORT_SYMBOL
+	#define PBR_API __declspec(dllexport)
+#else
+	#define PBR_API
 #endif
+
+extern "C" 
+{
+	PBR_API void InitializeEffectInstance(Effect_Instance* pEffect)
+	{
+		pEffect->CreateShadersCallback = (RetBoolFunc)CreateShaders;
+		pEffect->CreateBlendStatesCallback = (RetBoolFunc)CreateBlendStates;
+		pEffect->CreateRasterizerStatesCallback = (RetBoolFunc)CreateRasterizerStates;
+		pEffect->CreateDepthStencilStatesCallback = (RetBoolFunc)CreateDepthStencilStates;
+		pEffect->LoadResourcesCallback = (RetBoolFunc)LoadResources;
+		pEffect->CreateConstantBuffersCallback = (RetBoolFunc)CreateConstantBuffers;
+		pEffect->RenderOneFrameCallback = (Func)RenderOneFrame;
+	}
+
+	PBR_API void UninitializeEffectInstance()
+	{
+		g_pBlendState.Reset();
+		g_pRasterizerState.Reset();
+		g_pDepthStencilState.Reset();
+		g_pInputLayout.Reset();
+		g_pGeometryShader.Reset();
+		g_pPBRShader.Reset();
+		g_pShadingParamsCB.Reset();
+	}
+}
