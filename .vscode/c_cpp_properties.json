@@ -4,7 +4,8 @@
             "name": "Win32 Debug",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${workspaceFolder}/Libs/jpeg"
+                "${workspaceFolder}/Libs/stb/include",
+                "${workspaceFolder}/Libs/assimp/include"
             ],
             "defines": [
                 "_DEBUG",

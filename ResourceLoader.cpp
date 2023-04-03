@@ -1,4 +1,7 @@
 #include "Effect.h"
+#include "assimp/Importer.hpp"
+#include "assimp/postprocess.h"
+#include "assimp/scene.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -196,6 +199,85 @@ bool LoadJpegTextureFromFile(LPCTSTR lpszFileName, bool bGammaCorrection, ID3D11
 	}
 
 	return false;
+}
+
+void ConvertMeshToGeom(const aiMesh* pMesh, const aiMatrix4x4& myMatrix)
+{
+	if (pMesh->mNumVertices == 0)
+		return;
+	bool bHasNormal = pMesh->mNormals != nullptr;
+	bool bHasTangent = pMesh->mTangents != nullptr;
+	bool bHasUV0 = pMesh->mNumUVComponents > 0 && pMesh->mTextureCoords[0] != nullptr;
+	if (bHasNormal && bHasTangent && bHasUV0)
+	{
+		VB_PositionNormalTangentUV0* pVB = new VB_PositionNormalTangentUV0;
+		pVB->Initialize()
+	}
+	int nVBType = 0;
+	if ()
+		nVBType = 1;
+	if ()
+		nVBType = 2;
+	if ()
+		nVBType = 3;
+	
+}
+
+bool LoadMesh(LPCTSTR lpszFileName)
+{
+	FileContent TextureContent;
+	if (!LoadFile(lpszFileName, TextureContent))
+		return false;
+
+	Assimp::Importer imp;
+	const aiScene* pLoadedScene = imp.ReadFileFromMemory(TextureContent.m_pContent, TextureContent.m_nLength, aiProcess_ConvertToLeftHanded | aiProcessPreset_TargetRealtime_MaxQuality);
+	const char* pszErrorStr = imp.GetErrorString();
+	if (pLoadedScene != nullptr && pLoadedScene && pLoadedScene->HasMeshes())
+	{
+		std::function<void(const aiNode*, const aiMatrix4x4&, aiMesh** const, const int)>
+			RecursiveCreateGeom = [&RecursiveCreateGeom](const aiNode* pNode, const aiMatrix4x4& parentMatrix, aiMesh** const pMeshes, const int nNumMeshes)
+			{
+				aiMatrix4x4 myMatrix = pNode->mTransformation * parentMatrix;
+				if (pNode->mNumMeshes > 0)
+				{
+					for (int i = 0; i < pNode->mNumMeshes; ++i)
+					{
+						int nMeshIndex = pNode->mMeshes[i];
+						if (nMeshIndex >= 0 && nMeshIndex < nNumMeshes)
+						{
+							// 一个有效的Mesh
+							const aiMesh* myMesh = pMeshes[nMeshIndex];
+							ConvertMeshToGeom(myMesh, myMatrix);
+						}
+					}
+				}
+				if (pNode->mNumChildren > 0)
+				{
+					for (int i = 0; i < pNode->mNumChildren; ++i)
+					{
+						RecursiveCreateGeom(pNode->mChildren[i], myMatrix, pMeshes, nNumMeshes);
+					}
+				}
+			};
+
+		if (pLoadedScene->mRootNode != nullptr)
+		{
+			RecursiveCreateGeom(pLoadedScene->mRootNode, 
+				aiMatrix4x4(1.0f, 0.0f, 0.0f, 0.0f,
+							0.0f, 1.0f, 0.0f, 0.0f,
+							0.0f, 0.0f, 1.0f, 0.0f,
+							0.0f, 0.0f, 0.0f, 1.0f),
+				pLoadedScene->mMeshes,
+				pLoadedScene->mNumMeshes);
+		}
+		imp.FreeScene();
+		return true;	
+	}
+	else
+	{
+		imp.FreeScene();
+		return false;
+	}
 }
 
 HRESULT CShaderHeaderInclude::Open(D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID *ppData, UINT *pBytes)

@@ -386,6 +386,7 @@ struct Effect_Instance {
 };
 extern std::weak_ptr<Effect_Instance> g_pCurrentEffectInst;
 
+// SOA VertexBuffer
 class VB_Base {
 public:
 	virtual ~VB_Base() {
@@ -502,6 +503,31 @@ public:
 			return false;
 		m_pStrides[0] = m_pStrides[1] = m_pStrides[2] = sizeof(float) * 3;
 		m_pOffsets[0] = m_pOffsets[1] = m_pOffsets[2] = 0;
+		m_nNumVerts = NumVertices;
+		return true;
+	}
+};
+
+class VB_PositionNormalTangentUV0 final : public VB_Base {
+public:
+	VB_PositionNormalTangentUV0() {
+		m_nNumVB = 4;
+		m_ppVertexBuffer = new ID3D11Buffer*[m_nNumVB];
+		m_pStrides = new UINT[m_nNumVB];
+		m_pOffsets = new UINT[m_nNumVB];
+	}
+	bool Initialize(LPVOID pPosMem, LPVOID pNormalMem, LPVOID pTangentMem, LPVOID pUV0Mem, UINT NumVertices) {
+		if (!InitializeBuffer(pPosMem, sizeof(float) * 3, NumVertices, &m_ppVertexBuffer[0]))
+			return false;
+		if (!InitializeBuffer(pNormalMem, sizeof(float) * 3, NumVertices, &m_ppVertexBuffer[1]))
+			return false;
+		if (!InitializeBuffer(pTangentMem, sizeof(float) * 3, NumVertices, &m_ppVertexBuffer[2]))
+			return false;
+		if (!InitializeBuffer(pUV0Mem, sizeof(float) * 2, NumVertices, &m_ppVertexBuffer[3]))
+			return false;
+		m_pStrides[0] = m_pStrides[1] = m_pStrides[2] = sizeof(float) * 3;
+		m_pStrides[3] = sizeof(float) * 2;
+		m_pOffsets[0] = m_pOffsets[1] = m_pOffsets[2] = m_pOffsets[3] = 0;
 		m_nNumVerts = NumVertices;
 		return true;
 	}
@@ -642,6 +668,7 @@ EFFECT_API bool CreateVertexShaderAndInputLayout(LPCTSTR pszFilePath, LPCSTR psz
 EFFECT_API bool CreateComputeShader(LPCTSTR pszFilePath, LPCSTR pszEntryPoint, EShaderModel ShaderModel, ID3D11ComputeShader** ppComputeShader);
 EFFECT_API bool CreatePixelShader(LPCTSTR pszFilePath, LPCSTR pszEntryPoint, EShaderModel ShaderModel, ID3D11PixelShader** ppPixelShader);
 EFFECT_API bool LoadJpegTextureFromFile(LPCTSTR lpszFileName, bool bGammaCorrection, ID3D11Texture2D** ppTexture2D, ID3D11ShaderResourceView** ppSRV);
+EFFECT_API bool LoadMesh(LPCTSTR lpszFileName);
 
 class EFFECT_API CShaderHeaderInclude : public ID3DInclude
 {
