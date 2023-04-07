@@ -186,7 +186,8 @@ void RenderOneFrame()
 	g_D3DInterface.m_pDeviceContext->OMSetDepthStencilState(g_pDepthStencilState, 0);
 	g_D3DInterface.m_pDeviceContext->RSSetState(g_pRasterizerState);
 
-	XMStoreFloat4A(&g_ShadingParams.ViewDir, XMVectorNegate(GetCameraViewDirection()));
+	XMVECTOR ViewDir = GetCameraViewLocation();
+	XMStoreFloat4A(&g_ShadingParams.ViewDir, ViewDir);
 	XMVECTOR LightDir = MakeD3DVECTOR(1.0f, 1.0f, 1.0f);
 	LightDir = XMVector3Normalize(LightDir);
 	XMStoreFloat4A(&g_ShadingParams.LightDir, LightDir);
@@ -216,7 +217,7 @@ void RenderOneFrame()
 			g_D3DInterface.m_pDeviceContext->Map(g_pShadingParamsCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &SubRc);
 			memcpy(SubRc.pData, &g_ShadingParams.ViewDir, sizeof(ShadingParams));
 			g_D3DInterface.m_pDeviceContext->Unmap(g_pShadingParamsCB, 0);
-			g_D3DInterface.m_pDeviceContext->PSSetConstantBuffers(3, 1, g_pShadingParamsCB);
+			g_D3DInterface.m_pDeviceContext->PSSetConstantBuffers(0, 1, g_pShadingParamsCB);
 
 			DrawOneGeom(GetGeoms()[i * 9 + j]);
 		}

@@ -20,6 +20,7 @@ void RegisterEffects()
 	REGISTER_EFFECT(SimpleHLSL, SimpleHLSL)
 	REGISTER_EFFECT(EnvMap, EnvMap)
 	REGISTER_EFFECT(PBR, PBR)
+	REGISTER_EFFECT(NormalMapping, NormalMapping)
 }
 
 bool CreateDeviceAndImmediateContext(HWND hWnd)
@@ -409,7 +410,7 @@ void GlobalEffectReset()
 
 std::vector<Geom> g_arrGeom;
 
-void AddGeom(VB_Base* pVB, ID3D11Buffer* pIndexBuffer, UINT NumIndex, XMMATRIX WorldMatrix)
+void AddGeom(VB_Base* pVB, ID3D11Buffer* pIndexBuffer, UINT NumIndex, FXMMATRIX WorldMatrix)
 {
 	g_arrGeom.emplace_back(pVB, pIndexBuffer, NumIndex, WorldMatrix);
 }
@@ -488,6 +489,11 @@ void UpdateCameraProjectionMatrix()
 
 	g_CameraProjectionMatrix = XMMatrixMultiply(g_CameraMatrix, g_ProjectionMatrix);
 	g_InvCameraProjectionMatrix = XMMatrixMultiply(g_InvProjectionMatrix, g_InvCameraMatrix);
+}
+
+XMVECTOR GetCameraViewLocation()
+{
+	return g_CameraData.m_CameraLocation;
 }
 
 XMVECTOR GetCameraViewDirection()

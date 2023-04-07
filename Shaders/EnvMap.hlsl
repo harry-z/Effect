@@ -1,4 +1,5 @@
-#include "Shaders/ShaderHeader.h"
+#include "Shaders/CommonHeader.h"
+#include "Shaders/VSHeader.h"
 
 struct Geometry_VSOut
 {

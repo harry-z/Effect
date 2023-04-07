@@ -1,19 +1,10 @@
-#include "Shaders/ShaderHeader.h"
+#include "Shaders/VSHeader.h"
 
-struct Geometry_In
+VS_Out_P GeometryVS ( VS_In_P IN )
 {
-    float4 position : position;
-};
-
-struct Geometry_Out
-{
-    float4 HPosition : SV_Position;
-};
-
-Geometry_Out GeometryVS ( Geometry_In IN )
-{
-    Geometry_Out OUT;
-    OUT.HPosition = mul(IN.position, WorldViewProj);
+    VS_Out_P OUT;
+    OUT.HPosition = mul(float4(IN.Position, 1.0f), WorldViewProj);
+    OUT.WorldPosition = mul(float4(IN.Position, 1.0f), World).xyz;
     return OUT;
 }
 

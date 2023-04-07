@@ -60,8 +60,6 @@ bool LoadResources()
 	else
 		delete pPositionVB;
 
-	LoadMesh(_T("Resources\\vbt5gh.fbx"));
-
 	return true;
 }
 

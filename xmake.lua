@@ -23,6 +23,13 @@ target("PBR")
     add_deps("EffectMain")
 target_end()
 
+target("NormalMapping")
+    set_kind("shared")
+    add_defines("NORMAL_MAPPING_EXPORT_SYMBOL")   
+    add_files("Effects/NormalMapping/*.cpp")
+    add_deps("EffectMain")
+target_end()
+
 target("EffectMain")
     set_kind("shared")
     add_defines("EFFECT_EXPORT_SYMBOL")

@@ -201,26 +201,68 @@ bool LoadJpegTextureFromFile(LPCTSTR lpszFileName, bool bGammaCorrection, ID3D11
 	return false;
 }
 
-void ConvertMeshToGeom(const aiMesh* pMesh, const aiMatrix4x4& myMatrix)
+void ConvertMeshToGeom(const aiMesh* pMesh, FXMMATRIX myMatrix)
 {
 	if (pMesh->mNumVertices == 0)
 		return;
 	bool bHasNormal = pMesh->mNormals != nullptr;
 	bool bHasTangent = pMesh->mTangents != nullptr;
 	bool bHasUV0 = pMesh->mNumUVComponents > 0 && pMesh->mTextureCoords[0] != nullptr;
+	VB_Base* pVB = nullptr;
 	if (bHasNormal && bHasTangent && bHasUV0)
 	{
-		VB_PositionNormalTangentUV0* pVB = new VB_PositionNormalTangentUV0;
-		pVB->Initialize()
+		VB_PositionNormalTangentUV0* pVB_PNTUV0 = new VB_PositionNormalTangentUV0;
+		pVB_PNTUV0->Initialize(pMesh->mVertices, pMesh->mNormals, pMesh->mTangents, pMesh->mTextureCoords[0], pMesh->mNumVertices);
+		pVB = pVB_PNTUV0;
 	}
-	int nVBType = 0;
-	if ()
-		nVBType = 1;
-	if ()
-		nVBType = 2;
-	if ()
-		nVBType = 3;
-	
+	else if (bHasNormal)
+	{
+		VB_PositionNormal* pVB_PN = new VB_PositionNormal;
+		pVB_PN->Initialize(pMesh->mVertices, pMesh->mNormals, pMesh->mNumVertices);
+		pVB = pVB_PN;
+	}
+	else
+	{
+		VB_Position* pVB_P = new VB_Position;
+		pVB_P->Initialize(pMesh->mVertices, pMesh->mNumVertices);
+		pVB = pVB_P;
+	}
+
+	ID3D11Buffer* pIndexBuffer = nullptr;
+	UINT nNumIndices = 0;
+	if (pMesh->mNumFaces > 0 && pMesh->mFaces != nullptr)
+	{
+		for (unsigned int i = 0; i < pMesh->mNumFaces; ++i)
+			nNumIndices += pMesh->mFaces[i].mNumIndices;
+		UINT* pIndexBufferSysMem = (UINT*)malloc(sizeof(UINT) * nNumIndices);
+		UINT nIndexOffset = 0;
+		for (unsigned int i = 0; i < pMesh->mNumFaces; ++i)
+		{
+			const aiFace& faceRef = pMesh->mFaces[i];
+			const UINT* pFaceIndices = faceRef.mIndices;
+			for (unsigned int nIndex = 0; nIndex < faceRef.mNumIndices; ++nIndex)
+				pIndexBufferSysMem[nIndexOffset + nIndex] = pFaceIndices[nIndex];
+			nIndexOffset += faceRef.mNumIndices;
+		}
+
+		D3D11_BUFFER_DESC IndexBufferDesc;
+		IndexBufferDesc.ByteWidth = sizeof(UINT) * nNumIndices;
+		IndexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+		IndexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+		IndexBufferDesc.CPUAccessFlags = 0;
+		IndexBufferDesc.MiscFlags = 0;
+		IndexBufferDesc.StructureByteStride = sizeof(UINT);
+
+		D3D11_SUBRESOURCE_DATA IndexData;
+		IndexData.pSysMem = pIndexBufferSysMem;
+		IndexData.SysMemPitch = IndexData.SysMemSlicePitch = 0;
+		HRESULT hr = g_D3DInterface.m_pDevice->CreateBuffer(&IndexBufferDesc, &IndexData, &pIndexBuffer);
+		free(pIndexBufferSysMem);
+		if (FAILED(hr))
+			return;
+	}
+
+	AddGeom(pVB, pIndexBuffer, nNumIndices, myMatrix);
 }
 
 bool LoadMesh(LPCTSTR lpszFileName)
@@ -230,9 +272,8 @@ bool LoadMesh(LPCTSTR lpszFileName)
 		return false;
 
 	Assimp::Importer imp;
-	const aiScene* pLoadedScene = imp.ReadFileFromMemory(TextureContent.m_pContent, TextureContent.m_nLength, aiProcess_ConvertToLeftHanded | aiProcessPreset_TargetRealtime_MaxQuality);
-	const char* pszErrorStr = imp.GetErrorString();
-	if (pLoadedScene != nullptr && pLoadedScene && pLoadedScene->HasMeshes())
+	const aiScene* pLoadedScene = imp.ReadFileFromMemory(TextureContent.m_pContent, TextureContent.m_nLength, aiProcess_ConvertToLeftHanded | aiProcessPreset_TargetRealtime_MaxQuality);	
+	if (pLoadedScene != nullptr && pLoadedScene->HasMeshes())
 	{
 		std::function<void(const aiNode*, const aiMatrix4x4&, aiMesh** const, const int)>
 			RecursiveCreateGeom = [&RecursiveCreateGeom](const aiNode* pNode, const aiMatrix4x4& parentMatrix, aiMesh** const pMeshes, const int nNumMeshes)
@@ -240,6 +281,12 @@ bool LoadMesh(LPCTSTR lpszFileName)
 				aiMatrix4x4 myMatrix = pNode->mTransformation * parentMatrix;
 				if (pNode->mNumMeshes > 0)
 				{
+					XMMATRIX myXMMatrix(
+						XMVectorSet(myMatrix.a1, myMatrix.a2, myMatrix.a3, myMatrix.a4),
+						XMVectorSet(myMatrix.b1, myMatrix.b2, myMatrix.b3, myMatrix.b4),
+						XMVectorSet(myMatrix.c1, myMatrix.c2, myMatrix.c3, myMatrix.c4),
+						XMVectorSet(myMatrix.d1, myMatrix.d2, myMatrix.d3, myMatrix.d4)
+					);
 					for (int i = 0; i < pNode->mNumMeshes; ++i)
 					{
 						int nMeshIndex = pNode->mMeshes[i];
@@ -247,7 +294,7 @@ bool LoadMesh(LPCTSTR lpszFileName)
 						{
 							// 一个有效的Mesh
 							const aiMesh* myMesh = pMeshes[nMeshIndex];
-							ConvertMeshToGeom(myMesh, myMatrix);
+							ConvertMeshToGeom(myMesh, myXMMatrix);
 						}
 					}
 				}
@@ -275,6 +322,7 @@ bool LoadMesh(LPCTSTR lpszFileName)
 	}
 	else
 	{
+		const char* pszErrorStr = imp.GetErrorString();
 		imp.FreeScene();
 		return false;
 	}

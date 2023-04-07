@@ -486,28 +486,6 @@ public:
 	}
 };
 
-class VB_PositionNormalTangent final : public VB_Base {
-public:
-	VB_PositionNormalTangent() {
-		m_nNumVB = 3;
-		m_ppVertexBuffer = new ID3D11Buffer*[m_nNumVB];
-		m_pStrides = new UINT[m_nNumVB];
-		m_pOffsets = new UINT[m_nNumVB];
-	}
-	bool Initialize(LPVOID pPosMem, LPVOID pNormalMem, LPVOID pTangentMem, UINT NumVertices) {
-		if (!InitializeBuffer(pPosMem, sizeof(float) * 3, NumVertices, &m_ppVertexBuffer[0]))
-			return false;
-		if (!InitializeBuffer(pNormalMem, sizeof(float) * 3, NumVertices, &m_ppVertexBuffer[1]))
-			return false;
-		if (!InitializeBuffer(pTangentMem, sizeof(float) * 3, NumVertices, &m_ppVertexBuffer[2]))
-			return false;
-		m_pStrides[0] = m_pStrides[1] = m_pStrides[2] = sizeof(float) * 3;
-		m_pOffsets[0] = m_pOffsets[1] = m_pOffsets[2] = 0;
-		m_nNumVerts = NumVertices;
-		return true;
-	}
-};
-
 class VB_PositionNormalTangentUV0 final : public VB_Base {
 public:
 	VB_PositionNormalTangentUV0() {
@@ -538,7 +516,7 @@ struct Geom {
 	ID3D11Buffer* m_pIndexBuffer = nullptr;
 	UINT m_NumIndex = 0;
 	XMMATRIX m_WorldMatrix;
-	Geom(VB_Base* pVertexBuffer, ID3D11Buffer* pIndexBuffer, UINT NumIndex, XMMATRIX WorldMatrix)
+	Geom(VB_Base* pVertexBuffer, ID3D11Buffer* pIndexBuffer, UINT NumIndex, FXMMATRIX WorldMatrix)
 		: m_pVertexBuffer(pVertexBuffer)
 		, m_pIndexBuffer(pIndexBuffer)
 		, m_NumIndex(NumIndex)
@@ -561,7 +539,7 @@ struct Geom {
 	}
 };
 
-EFFECT_API void AddGeom(VB_Base* pVB, ID3D11Buffer* pIndexBuffer, UINT NumIndex, XMMATRIX WorldMatrix);
+EFFECT_API void AddGeom(VB_Base* pVB, ID3D11Buffer* pIndexBuffer, UINT NumIndex, FXMMATRIX WorldMatrix);
 EFFECT_API const std::vector<Geom>& GetGeoms();
 EFFECT_API void ClearGeoms();
 EFFECT_API void DrawOneGeom(const Geom& InGeom);
@@ -631,6 +609,7 @@ extern EFFECT_API D3D11BufferWrapper g_pGeomInvBuffer;
 extern EFFECT_API D3D11BufferWrapper g_pGeomITBuffer;
 
 EFFECT_API void UpdateCameraProjectionMatrix();
+EFFECT_API XMVECTOR GetCameraViewLocation();
 EFFECT_API XMVECTOR GetCameraViewDirection();
 EFFECT_API XMMATRIX GetCameraMatrix();
 EFFECT_API XMMATRIX GetCameraMatrixWithoutTranslation();
