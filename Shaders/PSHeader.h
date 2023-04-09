@@ -20,10 +20,10 @@ float3 GetAlbedoColor(float3 Albedo, float Metallic)
 // 注释掉的是Burley模型
 // Disney Model
 // [Burley 2012, "Physically-Based Shading at Disney"]
-float3 DiffuseColor()
+float3 DiffuseColor(float3 Albedo)
 {
     // Lambert diffuse
-	return GetAlbedoColor(BaseColor.xyz, SmoothAndMetallic.y) / PI;
+	return GetAlbedoColor(Albedo, SmoothAndMetallic.y) / PI;
 	// 1 - smoothness = roughness
 	// 0.5 + 2 * Roughness * HoL * HoL
 	// float FD90 = 0.5f + 2 * (1.0f - g_SmoothAndMetallic.x) * pow(ShadingParams.w, 2.0f);
@@ -86,7 +86,7 @@ void InitBrdfContext(inout BrdfContext Context, float3 N, float3 L, float3 V)
     Context.NoL = saturate( dot(N, L) );
 	Context.NoV = saturate( dot(N, V) );
 	Context.VoL = saturate( dot(V, L) );
-    float3 H = normalize(N + V);
+    float3 H = normalize(L + V);
 	// float InvLenH = rsqrt( 2 + 2 * Context.VoL );
 	Context.NoH = saturate( dot(N, H) );
 	Context.VoH = saturate( dot(V, H) );

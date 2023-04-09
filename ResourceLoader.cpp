@@ -207,13 +207,29 @@ void ConvertMeshToGeom(const aiMesh* pMesh, FXMMATRIX myMatrix)
 		return;
 	bool bHasNormal = pMesh->mNormals != nullptr;
 	bool bHasTangent = pMesh->mTangents != nullptr;
-	bool bHasUV0 = pMesh->mNumUVComponents > 0 && pMesh->mTextureCoords[0] != nullptr;
+	bool bHasUV0 = pMesh->mNumUVComponents[0] > 0 && pMesh->mTextureCoords[0] != nullptr;
 	VB_Base* pVB = nullptr;
 	if (bHasNormal && bHasTangent && bHasUV0)
 	{
-		VB_PositionNormalTangentUV0* pVB_PNTUV0 = new VB_PositionNormalTangentUV0;
-		pVB_PNTUV0->Initialize(pMesh->mVertices, pMesh->mNormals, pMesh->mTangents, pMesh->mTextureCoords[0], pMesh->mNumVertices);
-		pVB = pVB_PNTUV0;
+		switch (pMesh->mNumUVComponents[0])
+		{
+			case 2:
+			{
+				aiVector2D* pUVBuffer = new aiVector2D[pMesh->mNumVertices];
+				for (unsigned int i = 0; i < pMesh->mNumVertices; ++i)
+				{
+					const auto& UVW = pMesh->mTextureCoords[0][i];
+					pUVBuffer[i].Set(UVW.x, UVW.y);
+				}
+				VB_PositionNormalTangentUV0* pVB_PNTUV0 = new VB_PositionNormalTangentUV0;
+				pVB_PNTUV0->Initialize(pMesh->mVertices, pMesh->mNormals, pMesh->mTangents, pUVBuffer, pMesh->mNumVertices);
+				delete[] pUVBuffer;
+				pVB = pVB_PNTUV0;
+				break;
+			}
+			default:
+				return;
+		}
 	}
 	else if (bHasNormal)
 	{
@@ -294,7 +310,7 @@ bool LoadMesh(LPCTSTR lpszFileName)
 						{
 							// 一个有效的Mesh
 							const aiMesh* myMesh = pMeshes[nMeshIndex];
-							ConvertMeshToGeom(myMesh, myXMMatrix);
+							ConvertMeshToGeom(myMesh, XMMatrixTranspose(myXMMatrix));
 						}
 					}
 				}

@@ -201,7 +201,7 @@ void RenderOneFrame()
 	float Smoothness[] = { 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f };
 	float Metalness[] = { 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f };
 
-	for (UINT i = 0; i < 9; ++i)
+	for (UINT i = 0; i < 9; ++i)  
 	{
 		for (UINT j = 0; j < 9; ++j)
 		{

@@ -608,7 +608,9 @@ extern EFFECT_API D3D11BufferWrapper g_pGeomBuffer;
 extern EFFECT_API D3D11BufferWrapper g_pGeomInvBuffer;
 extern EFFECT_API D3D11BufferWrapper g_pGeomITBuffer;
 
+EFFECT_API void SetCameraSpeedRatio(float fRatio);
 EFFECT_API void UpdateCameraProjectionMatrix();
+EFFECT_API void SetCameraViewLocation(FXMVECTOR Location);
 EFFECT_API XMVECTOR GetCameraViewLocation();
 EFFECT_API XMVECTOR GetCameraViewDirection();
 EFFECT_API XMMATRIX GetCameraMatrix();

@@ -21,6 +21,7 @@ SamplerState NormalMapSampler : register(s1);
 
 float4 NormalMappingPS(VS_Out_PNTUV0 InData) : SV_Target0
 {
+    float3 Color = ColorMap.Sample(ColorMapSampler, InData.UV).xyz;
     float3 n = NormalMap.Sample(NormalMapSampler, InData.UV).xyz;
     n = n * 2.0f - 1.0f;
     float3x3 TBN = {
@@ -28,12 +29,11 @@ float4 NormalMappingPS(VS_Out_PNTUV0 InData) : SV_Target0
         InData.WorldBinormal,
         InData.WorldNormal
     };
-    TBN = transpose(TBN);
     n = mul(n, TBN);
 
     float3 ViewDir = normalize(ViewLocation - InData.WorldPosition);
 	BrdfContext Context;
     InitBrdfContext(Context, n, LightDir.xyz, ViewDir.xyz);
-	float3 Result = PI * (DiffuseColor() + SpecularGGX(Context, BaseColor.xyz, BaseColor.w, SmoothAndMetallic)) * Context.NoL * LightColor.xyz;
+	float3 Result = PI * (DiffuseColor(BaseColor.xyz * Color) + SpecularGGX(Context, BaseColor.xyz, BaseColor.w, SmoothAndMetallic)) * Context.NoL * LightColor.xyz;
 	return float4(saturate(pow(Result, 1.0f / 2.4f)), 1.0f);
 }

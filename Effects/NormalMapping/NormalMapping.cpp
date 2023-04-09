@@ -3,6 +3,7 @@
 D3D11BSWrapper g_pBlendState;
 D3D11RSWrapper g_pRasterizerState;
 D3D11DSSWrapper g_pDepthStencilState;
+D3D11SSWrapper g_pSamplerState;
 D3D11InputLayoutWrapper g_pInputLayout;
 D3D11VertexShaderWrapper g_pGeometryShader;
 D3D11PixelShaderWrapper g_pNormalMappingShader;
@@ -14,7 +15,7 @@ D3D11SRVWrapper g_pNRMSRV;
 
 struct alignas(16) ShadingParams
 {
-	XMFLOAT4A ViewDir;
+	XMFLOAT4A ViewLocation;
 	XMFLOAT4A LightDir;
 	XMFLOAT4A Albedo;
 	XMFLOAT4A LightColor;
@@ -27,8 +28,8 @@ bool CreateShaders()
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 1, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 1, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 1, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 2, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 3, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }
 	};
 	UINT NumElements = sizeof(InputLayoutDesc) / sizeof(InputLayoutDesc[0]);
 
@@ -51,13 +52,19 @@ bool CreateBlendStates()
 
 bool CreateRasterizerStates()
 {
-	g_pRasterizerState = TStaticRasterizerState<>().GetRasterizerState();
+	g_pRasterizerState = TStaticRasterizerState<D3D11_FILL_SOLID, D3D11_CULL_BACK, FALSE>().GetRasterizerState();
 	return true;
 }
 
 bool CreateDepthStencilStates()
 {
 	g_pDepthStencilState = TStaticDepthStencilState<>().GetDepthStencilState();
+	return true;
+}
+
+bool CreateSamplerStates()
+{
+	g_pSamplerState = TStaticSamplerState<D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT, D3D11_TEXTURE_ADDRESS_WRAP, D3D11_TEXTURE_ADDRESS_WRAP>().GetSamplerState();
 	return true;
 }
 
@@ -77,11 +84,11 @@ bool CreateConstantBuffers()
 
 bool LoadResources()
 {
-	if (!LoadMesh(_T("Resources\\vbt5gh.fbx")))
+	if (!LoadMesh(_T("Resources\\Cube.fbx")))  
 		return false;
-	if (!LoadJpegTextureFromFile(_T("Resources\\BaseColor.png"), true, g_pBaseColorTexture, g_pBaseColorSRV))
+	if (!LoadJpegTextureFromFile(_T("Resources\\T_Rock_Base_Color.TGA"), true, g_pBaseColorTexture, g_pBaseColorSRV))
 		return false;
-	if (!LoadJpegTextureFromFile(_T("Resources\\BaseColor_NRM.jpg"), false, g_pNRMTexture, g_pNRMSRV))
+	if (!LoadJpegTextureFromFile(_T("Resources\\T_Rock_Base_Normal.TGA"), false, g_pNRMTexture, g_pNRMSRV))
 		return false;
 	return true;
 }
@@ -98,9 +105,9 @@ void RenderOneFrame()
 	g_D3DInterface.m_pDeviceContext->OMSetDepthStencilState(g_pDepthStencilState, 0);
 	g_D3DInterface.m_pDeviceContext->RSSetState(g_pRasterizerState);
 
-	XMVECTOR ViewDir = GetCameraViewLocation();
-	XMStoreFloat4A(&g_ShadingParams.ViewDir, ViewDir);
-	XMVECTOR LightDir = MakeD3DVECTOR(1.0f, 1.0f, 1.0f);
+	XMVECTOR ViewLocation = GetCameraViewLocation();
+	XMStoreFloat4A(&g_ShadingParams.ViewLocation, ViewLocation);
+	XMVECTOR LightDir = MakeD3DVECTOR(-1.0f, 1.0f, 1.0f);
 	LightDir = XMVector3Normalize(LightDir);
 	XMStoreFloat4A(&g_ShadingParams.LightDir, LightDir);
 
@@ -108,34 +115,31 @@ void RenderOneFrame()
 	g_D3DInterface.m_pDeviceContext->IASetInputLayout(g_pInputLayout);
 	g_D3DInterface.m_pDeviceContext->PSSetShader(g_pNormalMappingShader, nullptr, 0);
 
-	XMFLOAT4A Albedo(1.0f, 0.71f, 0.29f, 0.5f);
+	XMFLOAT4A Albedo(1.0f, 1.0f, 1.0f, 0.5f);
 	XMFLOAT4A LightColor(1.0f, 1.0f, 1.0f, 1.0f);
-	float Smoothness[] = { 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f };
-	float Metalness[] = { 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f };
-
-	XMMATRIX World(
-		1.0f, 0.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f);
-	SyncGeomConstantBuffer(World);
 
 	D3D11_MAPPED_SUBRESOURCE SubRc;
 
 	g_ShadingParams.Albedo = Albedo;
 	g_ShadingParams.LightColor = LightColor;
-	g_ShadingParams.SmoothnessAndMetalness.x = 0.7f;
-	g_ShadingParams.SmoothnessAndMetalness.y = 0.5f;
+	g_ShadingParams.SmoothnessAndMetalness.x = 0.3f;
+	g_ShadingParams.SmoothnessAndMetalness.y = 0.2f;
 	ZeroMemory(&SubRc, sizeof(D3D11_MAPPED_SUBRESOURCE));
 	g_D3DInterface.m_pDeviceContext->Map(g_pShadingParamsCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &SubRc);
-	memcpy(SubRc.pData, &g_ShadingParams.ViewDir, sizeof(ShadingParams));
+	memcpy(SubRc.pData, &g_ShadingParams.ViewLocation, sizeof(ShadingParams));
 	g_D3DInterface.m_pDeviceContext->Unmap(g_pShadingParamsCB, 0);
 	g_D3DInterface.m_pDeviceContext->PSSetConstantBuffers(0, 1, g_pShadingParamsCB);
 	g_D3DInterface.m_pDeviceContext->PSSetShaderResources(0, 1, g_pBaseColorSRV);
 	g_D3DInterface.m_pDeviceContext->PSSetShaderResources(1, 1, g_pNRMSRV);
+	g_D3DInterface.m_pDeviceContext->PSSetSamplers(0, 1, g_pSamplerState);
+	g_D3DInterface.m_pDeviceContext->PSSetSamplers(1, 1, g_pSamplerState);
 
+	XMMATRIX RotationMatrix = XMMatrixRotationX(-PI * 0.5f);
 	for (const auto& Geom : GetGeoms())	
+	{
+		SyncGeomConstantBuffer(RotationMatrix);
 		DrawOneGeom(Geom);
+	}
 }
 
 #ifdef NORMAL_MAPPING_EXPORT_SYMBOL
@@ -152,9 +156,12 @@ extern "C"
 		pEffect->CreateBlendStatesCallback = (RetBoolFunc)CreateBlendStates;
 		pEffect->CreateRasterizerStatesCallback = (RetBoolFunc)CreateRasterizerStates;
 		pEffect->CreateDepthStencilStatesCallback = (RetBoolFunc)CreateDepthStencilStates;
+		pEffect->CreateSamplerStatesCallback = (RetBoolFunc)CreateSamplerStates;
 		pEffect->LoadResourcesCallback = (RetBoolFunc)LoadResources;
 		pEffect->CreateConstantBuffersCallback = (RetBoolFunc)CreateConstantBuffers;
 		pEffect->RenderOneFrameCallback = (Func)RenderOneFrame;
+		SetCameraSpeedRatio(0.1f);
+		SetCameraViewLocation(XMVectorSet(-200.0f, 0.0f, 0.0f, 1.0f));
 	}
 
 	NORMAL_MAPPING_API void UninitializeEffectInstance()
@@ -162,6 +169,7 @@ extern "C"
 		g_pBlendState.Reset();
 		g_pRasterizerState.Reset();
 		g_pDepthStencilState.Reset();
+		g_pSamplerState.Reset();
 		g_pInputLayout.Reset();
 		g_pGeometryShader.Reset();
 		g_pNormalMappingShader.Reset();
@@ -170,5 +178,7 @@ extern "C"
 		g_pBaseColorSRV.Reset();
 		g_pNRMTexture.Reset();
 		g_pNRMSRV.Reset();
+		SetCameraSpeedRatio(1.0f);
+		SetCameraViewLocation(XMVectorSet(-50.0f, 0.0f, 0.0f, 1.0f));
 	}
 }

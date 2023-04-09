@@ -237,6 +237,7 @@ struct alignas(16) CameraData
 	XMVECTOR m_CameraY;
 	XMVECTOR m_CameraZ;
 	XMVECTOR m_CameraLocation;
+	float m_fRatio;
 
 	CameraData() {
 		Reset();
@@ -248,6 +249,7 @@ struct alignas(16) CameraData
 		m_CameraY = MakeD3DVECTOR(0.0f, 0.0f, 1.0f);
 		m_CameraZ = MakeD3DVECTOR(1.0f, 0.0f, 0.0f);
 		m_CameraLocation = MakeD3DPOINT(-50.0f, 0.0f, 0.0f);
+		m_fRatio = 1.0f;
 	}
 } g_CameraData;
 
@@ -370,6 +372,10 @@ void TickInput()
 {
 	XMVECTOR Scalar = XMVectorSet(0.2f, 0.2f, 0.2f, 0.0f);
 	XMVECTOR MinusScalar = XMVectorSet(-0.2f, -0.2f, -0.2f, 0.0f);
+	XMVECTOR Ratio = XMVectorSet(g_CameraData.m_fRatio, g_CameraData.m_fRatio, g_CameraData.m_fRatio, 0.0f);
+	Scalar = XMVectorMultiply(Scalar, Ratio);
+	MinusScalar = XMVectorMultiply(MinusScalar, Ratio);
+	
 	if ((g_InputData.m_KeyFlag & 0x01) != 0)
 	{
 		g_CameraData.m_CameraLocation = XMVectorMultiplyAdd(g_CameraData.m_CameraZ, Scalar, g_CameraData.m_CameraLocation);
@@ -452,6 +458,11 @@ XMMATRIX g_InvCameraMatrix;
 XMMATRIX g_InvProjectionMatrix;
 XMMATRIX g_InvCameraProjectionMatrix;
 
+void SetCameraSpeedRatio(float fRatio)
+{
+	g_CameraData.m_fRatio = fRatio;
+}
+
 void UpdateCameraProjectionMatrix()
 {
 	XMVECTOR Deter;
@@ -489,6 +500,11 @@ void UpdateCameraProjectionMatrix()
 
 	g_CameraProjectionMatrix = XMMatrixMultiply(g_CameraMatrix, g_ProjectionMatrix);
 	g_InvCameraProjectionMatrix = XMMatrixMultiply(g_InvProjectionMatrix, g_InvCameraMatrix);
+}
+
+void SetCameraViewLocation(FXMVECTOR Location)
+{
+	g_CameraData.m_CameraLocation = Location;
 }
 
 XMVECTOR GetCameraViewLocation()
