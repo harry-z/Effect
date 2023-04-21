@@ -30,6 +30,13 @@ target("NormalMapping")
     add_deps("EffectMain")
 target_end()
 
+target("GTAO")
+    set_kind("shared")
+    add_defines("GTAO_EXPORT_SYMBOL")
+    add_files("Effects/GTAO/*.cpp")
+    add_deps("EffectMain")
+target_end()
+
 target("EffectMain")
     set_kind("shared")
     add_defines("EFFECT_EXPORT_SYMBOL")
