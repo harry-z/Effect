@@ -38,7 +38,7 @@ cbuffer AOParams : register(b0)
 {
     float ViewSpaceSampleRadius;
     float2 FocalLen;
-    float2 WindowParams;
+    float4 WindowParams;
 };
 
 Texture2D <float4> ViewPosMap                : register(t0);
@@ -46,14 +46,84 @@ Texture2D <float4> ViewNormalMap             : register(t1);
 Texture2D <float4> ViewTangentMap            : register(t2);
 SamplerState TextureSampler                  : register(s0);
 
+const int NumSamples = 3;
+const int NumDirections = 6;
+const float PixelMaxRadius = 50.0f;
+
+void ComputeStepSize(out float2 StepSizeUV, out float NumSteps, float PixelRadius)
+{
+    NumSteps = min(PixelRadius, NumSamples);
+    float PixelStepSize = PixelRadius / NumSteps;
+    float MaxNumSteps = PixelMaxRadius / PixelStepSize;
+    NumSteps = MaxNumSteps < NumSteps ? max(1, floor(MaxNumSteps + 0.5f)) : NumSteps;
+    PixelStepSize = MaxNumSteps < NumSteps ? PixelMaxRadius / NumSteps : PixelStepSize;
+    StepSizeUV = PixelStepSize * WindowParams.zw;
+}
+
+float2 RotateDirection(float2 Direction, float2 RandomDirection)
+{
+    return float2(Direction.x * RandomDirection.x - Direction.x * RandomDirection.y, 
+                    Direction.y * RandomDirection.y + Direction.x * RandomDirection.x);
+}
+
+float Tan(float3 V)
+{
+    return V.z / sqrt(dot(V.xy, V.xy));
+}
+
+float TanToSin(float Tan)
+{
+    return Tan / sqrt(1.0f + Tan * Tan);
+}
+
+float Occlusion(float2 DeltaUV, float2 SampleUV, float RandStep, float NumSteps)
+{
+    float AO = 0.0f;
+    float3 Position = ViewPosMap.Load(int3(SampleUV, 0)).xyz;
+    float3 Tangent = ViewTangentMap.Load(int3(SampleUV, 0)).xyz;
+    float TanH = Tan(Tangent);
+    float SinH = TanToSin(TanH);
+    for (int i = 1; i <= NumSteps; ++i)
+    {
+        SampleUV += DeltaUV;
+        float3 SamplePosition = ViewPosMap.Load(int3(SampleUV, 0)).xyz;
+        TanS = Tan(SamplePosition - Position);
+        float Dis = length(SamplePosition - Position);
+        if (Dis < ViewSpaceSampleRadius && TanS > TanH)
+        {
+            float SinS = TanToSin(TanS);
+            AO += SinS - SinT;
+            TanH = TanS;
+        }
+    }
+    return AO;
+}
+
 float4 HBAO(float4 HPosition : SV_Position) : SV_Target0;
 {
+    // 得到NDC空间下的采样半径
     float2 SampleRadius = 0.5f * ViewSpaceSampleRadius * FocalLen / HPosition.w;
+    // 以像素为单位的采样半径
     float PixelRadius = SampleRadius.x * WindowParams.x;
 
     float AOResult = 1.0f;
     [branch] if (PixelRadius > 1.0f)
     {
-
+        AOResult = 0.0f;
+        float2 StepSizeUV;
+        float NumSteps;
+        ComputeStepSize(StepSizeUV, NumSteps, PixelRadius);
+        float Angle = 2 * PI / NumDirections;
+        for (int i = 0; i < NumDirections; ++i)
+        {
+            float Theta = i * Angle;
+            float RandNum = Random2DTo1D(HPosition.xy, 14375.5964f, float2(15.637f, 76.243f));
+            // 在采样方向基础上做随机扰动
+            float2 Direction = RotateDirection(float2(cos(Theta), sin(Theta)), float2(cos(RandNum), sin(RandNum)));
+            float2 DeltaUV = Direction * StepSizeUV;
+            AOResult += Occlusion(DeltaUV, HPosition.xy, RandNum, NumSteps);
+        }
+        AOResult = 1.0f - AOResult / NumDirections;
     }
+    return float4(AOResult);
 }
